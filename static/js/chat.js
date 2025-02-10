@@ -2,6 +2,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatForm = document.getElementById('chatForm');
     const messageInput = document.getElementById('messageInput');
     const chatMessages = document.getElementById('chatMessages');
+    const modeButtons = document.querySelectorAll('.mode-button');
+
+    let currentMode = 'chat'; // Default mode
+
+    // Handle mode toggle
+    modeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            modeButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            currentMode = button.dataset.mode;
+
+            // Update placeholder based on mode
+            messageInput.placeholder = currentMode === 'chat' 
+                ? "What's on your mind?" 
+                : "Enter your prompt for generation...";
+        });
+    });
 
     // Load previous messages
     loadMessages();
@@ -35,7 +52,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ message: message })
+                body: JSON.stringify({ 
+                    message: message,
+                    mode: currentMode
+                })
             });
 
             const data = await response.json();

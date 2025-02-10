@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.11"
 dependencies = [
+    "anthropic>=0.45.2",
     "asgiref>=3.8.1",
     "asyncpg>=0.30.0",
     "email-validator>=2.2.0",
@@ -12,6 +13,7 @@ dependencies = [
     "gunicorn>=23.0.0",
     "hypercorn>=0.17.3",
     "ollama>=0.4.7",
+    "openai>=1.61.1",
     "psycopg2-binary>=2.9.10",
     "quart>=0.20.0",
     "sqlalchemy>=2.0.38",
