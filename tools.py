@@ -1,17 +1,21 @@
 
 from typing import Dict, Any, Callable
 
-def add_two_numbers(a: int, b: int) -> int:
-    """Add two numbers together and return their sum."""
-    return a + b
+class MathTools:
+    @staticmethod
+    def add_two_numbers(a: int, b: int) -> int:
+        """Add two numbers together and return their sum."""
+        return a + b
 
-def subtract_two_numbers(a: int, b: int) -> int:
-    """Subtract b from a and return the difference."""
-    return a - b
+    @staticmethod
+    def subtract_two_numbers(a: int, b: int) -> int:
+        """Subtract b from a and return the difference."""
+        return a - b
 
-def multiply_two_numbers(a: int, b: int) -> int:
-    """Multiply two numbers together and return their product."""
-    return a * b
+    @staticmethod
+    def multiply_two_numbers(a: int, b: int) -> int:
+        """Multiply two numbers together and return their product."""
+        return a * b
 
 # Tool definitions for model interaction
 TOOL_DEFINITIONS = [
@@ -64,7 +68,7 @@ TOOL_DEFINITIONS = [
 
 # Map of available functions
 AVAILABLE_FUNCTIONS: Dict[str, Callable] = {
-    'add_two_numbers': add_two_numbers,
-    'subtract_two_numbers': subtract_two_numbers,
-    'multiply_two_numbers': multiply_two_numbers
+    'add_two_numbers': MathTools.add_two_numbers,
+    'subtract_two_numbers': MathTools.subtract_two_numbers,
+    'multiply_two_numbers': MathTools.multiply_two_numbers
 }

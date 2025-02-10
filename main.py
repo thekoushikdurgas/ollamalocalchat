@@ -11,11 +11,13 @@ async def main():
     
     try:
         await serve(app, config)
-    except OSError:
-        # Fallback to port 8080 if 5000 is in use
-        config.bind = ["0.0.0.0:8080"]
-        print("Port 5000 not available, using port 8080 instead")
-        await serve(app, config)
+    except OSError as e:
+        if "Address already in use" in str(e):
+            config.bind = ["0.0.0.0:8080"]
+            print("Port 5000 not available, using port 8080 instead")
+            await serve(app, config)
+        else:
+            raise
 
 if __name__ == "__main__":
     asyncio.run(main())
