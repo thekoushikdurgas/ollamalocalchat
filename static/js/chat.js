@@ -16,14 +16,43 @@ document.addEventListener('DOMContentLoaded', function() {
             const reader = new FileReader();
             reader.onload = function(e) {
                 currentImageData = e.target.result.split(',')[1]; // Get base64 data
-                const preview = document.getElementById('imagePreview');
-                if (preview) {
-                    preview.src = e.target.result;
-                    preview.style.display = 'block';
+                
+                // Create or update image preview
+                let preview = document.getElementById('imagePreview');
+                if (!preview) {
+                    preview = document.createElement('img');
+                    preview.id = 'imagePreview';
+                    preview.className = 'image-preview';
+                    document.querySelector('.chat-input-container').insertBefore(
+                        preview, 
+                        document.getElementById('chatForm')
+                    );
+                }
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                
+                // Add remove button
+                let removeBtn = document.getElementById('removeImage');
+                if (!removeBtn) {
+                    removeBtn = document.createElement('button');
+                    removeBtn.id = 'removeImage';
+                    removeBtn.className = 'remove-image-btn';
+                    removeBtn.innerHTML = '<i data-feather="x"></i>';
+                    removeBtn.onclick = clearImageUpload;
+                    preview.parentElement.appendChild(removeBtn);
+                    feather.replace();
                 }
             };
             reader.readAsDataURL(file);
         }
+    }
+
+    function clearImageUpload() {
+        currentImageData = null;
+        const preview = document.getElementById('imagePreview');
+        const removeBtn = document.getElementById('removeImage');
+        if (preview) preview.remove();
+        if (removeBtn) removeBtn.remove();
     }
 
     // Add image upload button to chat form

@@ -156,16 +156,29 @@ async def multimodal_chat():
         if not message:
             return jsonify({'error': 'Message is required'}), 400
 
-        messages = [{'role': 'user', 'content': message}]
-        if image_data:
-            messages[0]['images'] = [image_data]
+        messages = [{
+            'role': 'user',
+            'content': message,
+            'images': [image_data] if image_data else []
+        }]
 
         try:
             response = await ollama_client.chat(
                 model=model,
-                messages=messages
+                messages=messages,
+                options={
+                    'temperature': 0.7,
+                    'top_p': 0.9,
+                }
             )
-            return jsonify({'response': response['message']['content']})
+            
+            # Add image thumbnail to response if image was analyzed
+            response_data = {
+                'response': response['message']['content'],
+                'has_image': bool(image_data)
+            }
+            
+            return jsonify(response_data)
         except Exception as e:
             logger.error(f"Multimodal chat error: {str(e)}")
             return jsonify({'error': str(e)}), 500

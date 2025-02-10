@@ -453,6 +453,26 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.image-preview {
+    max-width: 200px;
+    max-height: 200px;
+    margin: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.remove-image-btn {
+    position: absolute;
+    right: 5px;
+    top: 5px;
+    background: rgba(255,255,255,0.9);
+    border: none;
+    border-radius: 50%;
+    padding: 5px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
 .structured-output {
     background-color: #2d2d2d;
     color: #ffffff;
