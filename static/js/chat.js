@@ -200,22 +200,25 @@ createModelSubmit.addEventListener('click', async () => {
         const baseModel = document.getElementById('baseModel').value;
         const systemPrompt = document.getElementById('systemPrompt').value;
 
-        // Add progress area to modal
-        const progressArea = document.createElement('div');
-        progressArea.id = 'pullProgress';
-        document.querySelector('.modal-content').appendChild(progressArea);
+        // Get or create progress area
+        let progressArea = document.getElementById('pullProgress');
+        if (!progressArea) {
+            progressArea = document.createElement('div');
+            progressArea.id = 'pullProgress';
+            document.querySelector('.modal-content').appendChild(progressArea);
+        }
 
         // Start progress tracking
         const progressTracker = trackPullProgress();
 
-        // Use existing progress area if it exists, otherwise create new one
-        const progressDiv = document.getElementById('modelProgress') || (() => {
-            const div = document.createElement('div');
-            div.id = 'modelProgress';
-            div.className = 'model-progress';
-            document.querySelector('.modal-content').appendChild(div);
-            return div;
-        })();
+        // Get or create model progress div
+        let progressDiv = document.getElementById('modelProgress');
+        if (!progressDiv) {
+            progressDiv = document.createElement('div');
+            progressDiv.id = 'modelProgress';
+            progressDiv.className = 'model-progress';
+            document.querySelector('.modal-content').appendChild(progressDiv);
+        }
 
         try {
             progressArea.textContent = 'Starting model creation...';
