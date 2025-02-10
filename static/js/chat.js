@@ -117,13 +117,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const loadingIndicator = addLoadingIndicator();
 
         try {
-            const response = await fetch('/chat', {
+            const endpoint = currentMode === 'generate' ? '/generate' : '/chat';
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ 
                     message: message,
+                    prompt: message,  // For generate endpoint
                     mode: currentMode,
                     model: document.getElementById('modelSelect').value,
                     stream: true

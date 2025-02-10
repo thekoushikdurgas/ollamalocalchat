@@ -50,6 +50,29 @@ async def generate_code():
         logger.error(f"Request processing error: {str(e)}")
         return jsonify({'error': 'Failed to process request'}), 500
 
+@app.route('/generate', methods=['POST'])
+async def generate_response():
+    try:
+        data = request.json
+        prompt = data.get('prompt', '')
+        model = data.get('model', 'llama2')
+        stream = data.get('stream', True)
+
+        if not prompt:
+            return jsonify({'error': 'Prompt is required'}), 400
+
+        if stream:
+            async def generate_stream():
+                async for part in ollama_client.generate(model=model, prompt=prompt, stream=True):
+                    yield f"data: {json.dumps({'response': part['response']})}\n\n"
+            return Response(generate_stream(), mimetype='text/event-stream')
+        else:
+            response = await ollama_client.generate(model=model, prompt=prompt)
+            return jsonify({'response': response['response']})
+    except Exception as e:
+        logger.error(f"Generate error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/chat', methods=['POST'])
 async def chat():
     try:
