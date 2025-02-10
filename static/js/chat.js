@@ -108,8 +108,36 @@ document.addEventListener('DOMContentLoaded', function() {
     // Refresh models list periodically
     setInterval(fetchModels, 30000); // Every 30 seconds
 
-    // Fetch models on page load
-    fetchModels();
+    // Function to display models in sidebar
+    async function displayModels(models) {
+        const modelsList = document.getElementById('modelsList');
+        modelsList.innerHTML = '';
+        
+        models.forEach(model => {
+            const modelDiv = document.createElement('div');
+            modelDiv.className = 'model-item';
+            
+            const modelName = document.createElement('span');
+            modelName.className = 'model-name';
+            modelName.textContent = model.name;
+            
+            const modelDetails = document.createElement('span');
+            modelDetails.className = 'model-details';
+            let details = `Size: ${model.size}`;
+            if (model.family) details += ` | Family: ${model.family}`;
+            modelDetails.textContent = details;
+            
+            modelDiv.appendChild(modelName);
+            modelDiv.appendChild(modelDetails);
+            modelsList.appendChild(modelDiv);
+        });
+    }
+
+    // Fetch and display models on page load
+    fetchModels().then(displayModels);
+
+    // Refresh models list periodically
+    setInterval(() => fetchModels().then(displayModels), 30000);
 
     async function generateCode(prompt, suffix = '') {
         try {
