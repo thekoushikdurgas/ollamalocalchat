@@ -15,6 +15,41 @@ app.secret_key = "chatbot_secret_key"
 # Initialize Ollama client
 ollama_client = AsyncClient()
 
+async def get_embedding(text: str, model: str = 'llama2') -> list:
+    """Get embeddings for text using specified model."""
+    try:
+        response = await ollama_client.embeddings(
+            model=model,
+            prompt=text
+        )
+        return response['embeddings']
+    except Exception as e:
+        logger.error(f"Embedding error: {str(e)}")
+        return []
+
+def cosine_similarity(v1: list, v2: list) -> float:
+    """Calculate cosine similarity between two vectors."""
+    dot_product = sum(x * y for x, y in zip(v1, v2))
+    norm1 = sum(x * x for x in v1) ** 0.5
+    norm2 = sum(x * x for x in v2) ** 0.5
+    return dot_product / (norm1 * norm2) if norm1 > 0 and norm2 > 0 else 0
+
+@app.route('/embed', methods=['POST'])
+async def embed_text():
+    try:
+        data = request.json
+        text = data.get('text', '')
+        model = data.get('model', 'llama2')
+
+        if not text:
+            return jsonify({'error': 'Text is required'}), 400
+
+        embeddings = await get_embedding(text, model)
+        return jsonify({'embeddings': embeddings})
+    except Exception as e:
+        logger.error(f"Embedding request error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -151,6 +186,39 @@ async def clear_history():
 async def get_messages():
     # For now, return an empty list since we're not storing messages
     return jsonify([])
+
+@app.route('/similar-messages', methods=['POST'])
+async def find_similar_messages():
+    try:
+        data = request.json
+        query = data.get('query', '')
+        model = data.get('model', 'llama2')
+        threshold = data.get('threshold', 0.8)
+
+        if not query:
+            return jsonify({'error': 'Query is required'}), 400
+
+        query_embedding = await get_embedding(query, model)
+        
+        # In a real application, you would store and retrieve embeddings from a database
+        # For now, we'll just compare with recent messages
+        similar_messages = []
+        
+        if 'messages' in session:
+            for msg in session['messages']:
+                if msg['role'] == 'user':
+                    msg_embedding = await get_embedding(msg['content'], model)
+                    similarity = cosine_similarity(query_embedding, msg_embedding)
+                    if similarity >= threshold:
+                        similar_messages.append({
+                            'content': msg['content'],
+                            'similarity': similarity
+                        })
+
+        return jsonify({'similar_messages': similar_messages})
+    except Exception as e:
+        logger.error(f"Similar messages error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.errorhandler(404)
 def not_found_error(error):

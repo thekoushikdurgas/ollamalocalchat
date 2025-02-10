@@ -215,6 +215,39 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             actionsDiv.appendChild(copyBtn);
 
+            // Similar messages button
+            const similarBtn = document.createElement('button');
+            similarBtn.classList.add('action-button', 'find-similar-btn');
+            similarBtn.innerHTML = '<i data-feather="search"></i> Find Similar';
+            similarBtn.addEventListener('click', async () => {
+                try {
+                    const response = await fetch('/similar-messages', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            query: content,
+                            model: document.getElementById('modelSelect').value
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (response.ok && data.similar_messages.length > 0) {
+                        const similarMessages = data.similar_messages
+                            .map(msg => `${msg.content} (${(msg.similarity * 100).toFixed(1)}% similar)`)
+                            .join('\n');
+                        addMessage('Similar messages found:\n' + similarMessages, 'bot');
+                    } else {
+                        addMessage('No similar messages found.', 'bot');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    addMessage('Error finding similar messages.', 'bot');
+                }
+            });
+            actionsDiv.appendChild(similarBtn);
+
             messageDiv.appendChild(actionsDiv);
         }
 
