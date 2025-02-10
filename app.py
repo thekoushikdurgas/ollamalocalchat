@@ -164,6 +164,40 @@ async def chat():
                 except Exception as e:
                     logger.error(f"Generate mode error: {str(e)}")
                     raise
+            elif mode == 'tools':
+                try:
+                    from tools import TOOL_DEFINITIONS, AVAILABLE_FUNCTIONS
+                    response = await ollama_client.chat(
+                        model=model,
+                        messages=session['messages'],
+                        tools=TOOL_DEFINITIONS,
+                        options={'temperature': 0}
+                    )
+                    
+                    if response.message.tool_calls:
+                        outputs = []
+                        for tool in response.message.tool_calls:
+                            if function_to_call := AVAILABLE_FUNCTIONS.get(tool.function.name):
+                                output = function_to_call(**tool.function.arguments)
+                                outputs.append(output)
+                                session['messages'].append({
+                                    'role': 'tool',
+                                    'content': str(output),
+                                    'name': tool.function.name
+                                })
+                        
+                        # Get final response with tool outputs
+                        final_response = await ollama_client.chat(
+                            model=model,
+                            messages=session['messages']
+                        )
+                        bot_response = final_response.message.content
+                    else:
+                        bot_response = response.message.content
+                except Exception as e:
+                    logger.error(f"Tools mode error: {str(e)}")
+                    raise
+
             elif mode == 'structured':
                 try:
                     # Map keywords to schema models

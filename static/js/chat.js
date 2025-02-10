@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
     uploadButton.innerHTML = '<i data-feather="image"></i>';
     uploadButton.onclick = () => imageInput.click();
     document.querySelector('.input-group').insertBefore(uploadButton, document.querySelector('.send-button'));
-    
+
     // Fetch available models
     async function fetchModels() {
         try {
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const models = await response.json();
             const modelSelect = document.getElementById('modelSelect');
             modelSelect.innerHTML = ''; // Clear existing options
-            
+
             models.forEach(model => {
                 const option = document.createElement('option');
                 option.value = model.name;
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Fetch models on page load
     fetchModels();
-    
+
     async function generateCode(prompt, suffix = '') {
         try {
             const response = await fetch('/generate-code', {
@@ -139,8 +139,8 @@ document.addEventListener('DOMContentLoaded', function() {
             currentMode = button.dataset.mode;
 
             // Update placeholder based on mode
-            messageInput.placeholder = currentMode === 'chat' 
-                ? "What's on your mind?" 
+            messageInput.placeholder = currentMode === 'chat'
+                ? "What's on your mind?"
                 : "Enter your prompt for generation...";
         });
     });
@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     message: message,
                     prompt: message,  // For generate endpoint
                     mode: currentMode,
@@ -201,10 +201,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 while (true) {
                     const {value, done} = await reader.read();
                     if (done) break;
-                    
+
                     const chunk = decoder.decode(value);
                     const lines = chunk.split('\n');
-                    
+
                     for (const line of lines) {
                         if (line.startsWith('data: ')) {
                             const data = JSON.parse(line.slice(6));
