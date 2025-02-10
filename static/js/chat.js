@@ -110,24 +110,24 @@ document.addEventListener('DOMContentLoaded', function() {
 async function trackPullProgress() {
     const progressArea = document.getElementById('pullProgress');
     const progressBars = {};
-    
+
     while (true) {
         const response = await fetch('/pull-progress');
         const progress = await response.json();
-        
+
         if (progress.status) {
             const statusDiv = document.createElement('div');
             statusDiv.textContent = progress.status;
             progressArea.appendChild(statusDiv);
             continue;
         }
-        
+
         for (const [digest, info] of Object.entries(progress)) {
             if (!progressBars[digest] && info.total) {
                 progressBars[digest] = createProgressBar(info.digest_short);
                 progressArea.appendChild(progressBars[digest]);
             }
-            
+
             if (info.completed && info.total) {
                 const percent = (info.completed / info.total) * 100;
                 const bar = progressBars[digest].querySelector('.progress-bar');
@@ -135,7 +135,7 @@ async function trackPullProgress() {
                 bar.textContent = `${Math.round(percent)}%`;
             }
         }
-        
+
         await new Promise(resolve => setTimeout(resolve, 100));
     }
 }
@@ -144,12 +144,12 @@ createModelSubmit.addEventListener('click', async () => {
         const modelName = document.getElementById('modelName').value;
         const baseModel = document.getElementById('baseModel').value;
         const systemPrompt = document.getElementById('systemPrompt').value;
-        
+
         // Add progress area to modal
         const progressArea = document.createElement('div');
         progressArea.id = 'pullProgress';
         document.querySelector('.modal-content').appendChild(progressArea);
-        
+
         // Start progress tracking
         const progressTracker = trackPullProgress();
 
@@ -290,6 +290,8 @@ createModelSubmit.addEventListener('click', async () => {
             if (currentImageData) {
                 endpoint = '/multimodal-chat';
             }
+            const formatSelect = document.getElementById('formatSelect'); // Added format selection
+            const format = formatSelect ? formatSelect.value : null;     // Added format value
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
@@ -301,7 +303,8 @@ createModelSubmit.addEventListener('click', async () => {
                     mode: currentMode,
                     model: document.getElementById('modelSelect').value,
                     image: currentImageData,
-                    stream: endpoint !== '/multimodal-chat'  // Disable streaming for multimodal
+                    stream: endpoint !== '/multimodal-chat',  // Disable streaming for multimodal
+                    format: format // Added format to the request body
                 })
             });
 

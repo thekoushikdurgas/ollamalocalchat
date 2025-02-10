@@ -138,6 +138,7 @@ async def chat():
         mode = data.get('mode', 'chat')
         model = data.get('model', 'llama2')  # Default to llama2
         stream = data.get('stream', True)  # Enable streaming by default
+        format = data.get('format') #Added format parameter
 
         if not message:
             return jsonify({'error': 'Message is required'}), 400
@@ -173,7 +174,7 @@ async def chat():
                         tools=TOOL_DEFINITIONS,
                         options={'temperature': 0}
                     )
-                    
+
                     if response.message.tool_calls:
                         outputs = []
                         for tool in response.message.tool_calls:
@@ -185,7 +186,7 @@ async def chat():
                                     'content': str(output),
                                     'name': tool.function.name
                                 })
-                        
+
                         # Get final response with tool outputs
                         final_response = await ollama_client.chat(
                             model=model,
@@ -250,10 +251,17 @@ async def chat():
 
                     return Response(generate_stream(), mimetype='text/event-stream')
                 else:
-                    response = await ollama_client.chat(
-                        model=model,
-                        messages=session['messages']
-                    )
+                    if format:
+                        response = await ollama_client.chat(
+                            model=model,
+                            messages=session['messages'],
+                            format=format
+                        )
+                    else:
+                        response = await ollama_client.chat(
+                            model=model,
+                            messages=session['messages']
+                        )
                     bot_response = response['message']['content']
 
             # Add bot response to history
@@ -296,16 +304,16 @@ async def create_model():
         client = AsyncClient()
         session['pull_progress'] = {}
         current_digest = ''
-        
+
         try:
             async for progress in client.pull(base_model, stream=True):
                 digest = progress.get('digest', '')
                 status = progress.get('status', '')
-                
+
                 if status:
                     session['pull_progress']['status'] = status
                     continue
-                    
+
                 if digest:
                     if 'total' in progress:
                         if digest not in session['pull_progress']:
@@ -316,7 +324,7 @@ async def create_model():
                             }
                     if 'completed' in progress:
                         session['pull_progress'][digest]['completed'] = progress['completed']
-                    
+
                 current_digest = digest
 
         except Exception as e:
@@ -354,11 +362,11 @@ async def create_chat():
                 system=system_prompt,
                 stream=False
             )
-            
+
             # Clear session messages for new chat
             session['messages'] = []
             session['current_chat'] = name
-            
+
             return jsonify({'status': 'success', 'name': name})
         except Exception as e:
             logger.error(f"Chat creation error: {str(e)}")
