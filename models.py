@@ -1,35 +1,45 @@
+
 from datetime import datetime
+from typing import Optional, Any, List, Literal
+from pydantic import BaseModel
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import Column, Integer, String, Text, DateTime
 
+# Database Models
 class Base(DeclarativeBase):
     pass
 
 class Message(Base):
     __tablename__ = 'messages'
-
     id = Column(Integer, primary_key=True)
-    role = Column(String(10), nullable=False)  # 'user' or 'bot'
-    content = Column(Text, nullable=False)
+    role = Column(String(10), nullable=False)
+    content = Column(Text, nullable=False) 
     created_at = Column(DateTime, default=datetime.utcnow)
 
-# Structured output models
-from typing import Optional, Any
+    def to_dict(self) -> dict:
+        return {
+            'id': self.id,
+            'role': self.role,
+            'content': self.content,
+            'created_at': self.created_at.isoformat()
+        }
 
+# Response Models
 class ChatResponse(BaseModel):
     content: str
     format_type: Optional[str] = None
     structured_data: Optional[Any] = None
 
+# Friend Models
 class FriendInfo(BaseModel):
     name: str
     age: int
     is_available: bool
 
 class FriendList(BaseModel):
-    friends: list[FriendInfo]
+    friends: List[FriendInfo]
 
-# Image analysis models
+# Image Analysis Models
 class ImageObject(BaseModel):
     name: str
     confidence: float
@@ -37,14 +47,14 @@ class ImageObject(BaseModel):
 
 class ImageAnalysis(BaseModel):
     summary: str
-    objects: list[ImageObject]
+    objects: List[ImageObject]
     scene: str
-    colors: list[str]
+    colors: List[str]
     time_of_day: Literal['Morning', 'Afternoon', 'Evening', 'Night']
     setting: Literal['Indoor', 'Outdoor', 'Unknown']
-    text_content: str | None = None
+    text_content: Optional[str] = None
 
-# Add more structured output models as needed
+# Other Models
 class WeatherInfo(BaseModel):
     temperature: float
     conditions: str
@@ -52,14 +62,5 @@ class WeatherInfo(BaseModel):
 
 class RecipeInfo(BaseModel):
     name: str
-    ingredients: list[str]
-    steps: list[str]
-
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'role': self.role,
-            'content': self.content,
-            'created_at': self.created_at.isoformat()
-        }
+    ingredients: List[str]
+    steps: List[str]

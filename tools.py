@@ -2,18 +2,18 @@
 from typing import Dict, Any, Callable
 
 def add_two_numbers(a: int, b: int) -> int:
-    """Add two numbers together"""
+    """Add two numbers together and return their sum."""
     return a + b
 
 def subtract_two_numbers(a: int, b: int) -> int:
-    """Subtract two numbers"""
+    """Subtract b from a and return the difference."""
     return a - b
 
 def multiply_two_numbers(a: int, b: int) -> int:
-    """Multiply two numbers"""
+    """Multiply two numbers together and return their product."""
     return a * b
 
-# Tool definitions that can be passed to the model
+# Tool definitions for model interaction
 TOOL_DEFINITIONS = [
     {
         'type': 'function',
@@ -62,7 +62,7 @@ TOOL_DEFINITIONS = [
     }
 ]
 
-# Available functions map
+# Map of available functions
 AVAILABLE_FUNCTIONS: Dict[str, Callable] = {
     'add_two_numbers': add_two_numbers,
     'subtract_two_numbers': subtract_two_numbers,
