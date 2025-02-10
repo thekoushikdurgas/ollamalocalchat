@@ -382,12 +382,24 @@ async def create_model():
             return jsonify({'error': f"Error pulling model: {str(e)}"}), 500
 
         # Then create the custom model
-        response = await client.create(
-            model=model_name,
-            from_=base_model,
-            system=system_prompt,
-            stream=False
-        )
+        # Create the model with streaming based on user preference
+        stream = data.get('stream', True)
+        if stream:
+            async for progress in client.create(
+                model=model_name,
+                from_=base_model,
+                system=system_prompt,
+                stream=True
+            ):
+                session['pull_progress']['status'] = f"Creating model: {progress.status}"
+        else:
+            response = await client.create(
+                model=model_name,
+                from_=base_model,
+                system=system_prompt,
+                stream=False
+            )
+            session['pull_progress']['status'] = f"Model created: {response.status}"
 
         return jsonify({'status': response['status']})
     except Exception as e:
