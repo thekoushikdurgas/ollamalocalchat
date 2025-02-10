@@ -351,6 +351,9 @@ async def create_model():
                         session['pull_progress']['status'] = progress['status']
                     elif 'completed' in progress and 'total' in progress:
                         session['pull_progress']['progress'] = f"{(progress['completed']/progress['total'])*100:.1f}%"
+        except Exception as e:
+            logger.error(f"Error checking model existence: {str(e)}")
+            return jsonify({'error': f"Error checking model: {str(e)}"}), 500
 
         try:
             async for progress in client.pull(base_model, stream=True):
