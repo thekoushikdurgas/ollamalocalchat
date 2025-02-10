@@ -275,6 +275,12 @@ async def chat():
         logger.error(f"Request processing error: {str(e)}")
         return jsonify({'error': 'Failed to process request'}), 500
 
+@app.route('/pull-progress', methods=['GET'])
+async def get_pull_progress():
+    if 'pull_progress' not in session:
+        session['pull_progress'] = {}
+    return jsonify(session['pull_progress'])
+
 @app.route('/create-model', methods=['POST'])
 async def create_model():
     try:
@@ -286,7 +292,38 @@ async def create_model():
         if not model_name:
             return jsonify({'error': 'Model name is required'}), 400
 
+        # First pull the base model
         client = AsyncClient()
+        session['pull_progress'] = {}
+        current_digest = ''
+        
+        try:
+            async for progress in client.pull(base_model, stream=True):
+                digest = progress.get('digest', '')
+                status = progress.get('status', '')
+                
+                if status:
+                    session['pull_progress']['status'] = status
+                    continue
+                    
+                if digest:
+                    if 'total' in progress:
+                        if digest not in session['pull_progress']:
+                            session['pull_progress'][digest] = {
+                                'total': progress['total'],
+                                'completed': 0,
+                                'digest_short': digest[7:19]
+                            }
+                    if 'completed' in progress:
+                        session['pull_progress'][digest]['completed'] = progress['completed']
+                    
+                current_digest = digest
+
+        except Exception as e:
+            logger.error(f"Error pulling model: {str(e)}")
+            return jsonify({'error': f"Error pulling model: {str(e)}"}), 500
+
+        # Then create the custom model
         response = await client.create(
             model=model_name,
             from_=base_model,

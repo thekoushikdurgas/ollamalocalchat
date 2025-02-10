@@ -95,10 +95,63 @@ document.addEventListener('DOMContentLoaded', function() {
     const createModelSubmit = document.getElementById('createModelSubmit');
     const modelSelect = document.getElementById('modelSelect');
 
-    createModelSubmit.addEventListener('click', async () => {
+    function createProgressBar(digest) {
+    const progressContainer = document.createElement('div');
+    progressContainer.className = 'progress-container';
+    progressContainer.innerHTML = `
+        <div class="progress-label">Pulling ${digest}</div>
+        <div class="progress">
+            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+        </div>
+    `;
+    return progressContainer;
+}
+
+async function trackPullProgress() {
+    const progressArea = document.getElementById('pullProgress');
+    const progressBars = {};
+    
+    while (true) {
+        const response = await fetch('/pull-progress');
+        const progress = await response.json();
+        
+        if (progress.status) {
+            const statusDiv = document.createElement('div');
+            statusDiv.textContent = progress.status;
+            progressArea.appendChild(statusDiv);
+            continue;
+        }
+        
+        for (const [digest, info] of Object.entries(progress)) {
+            if (!progressBars[digest] && info.total) {
+                progressBars[digest] = createProgressBar(info.digest_short);
+                progressArea.appendChild(progressBars[digest]);
+            }
+            
+            if (info.completed && info.total) {
+                const percent = (info.completed / info.total) * 100;
+                const bar = progressBars[digest].querySelector('.progress-bar');
+                bar.style.width = `${percent}%`;
+                bar.textContent = `${Math.round(percent)}%`;
+            }
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+}
+
+createModelSubmit.addEventListener('click', async () => {
         const modelName = document.getElementById('modelName').value;
         const baseModel = document.getElementById('baseModel').value;
         const systemPrompt = document.getElementById('systemPrompt').value;
+        
+        // Add progress area to modal
+        const progressArea = document.createElement('div');
+        progressArea.id = 'pullProgress';
+        document.querySelector('.modal-content').appendChild(progressArea);
+        
+        // Start progress tracking
+        const progressTracker = trackPullProgress();
 
         try {
             const response = await fetch('/create-model', {
