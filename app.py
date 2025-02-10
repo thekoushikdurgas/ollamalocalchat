@@ -86,18 +86,37 @@ async def generate_response():
         prompt = data.get('prompt', '')
         model = data.get('model', 'llama2')
         stream = data.get('stream', True)
+        options = data.get('options', {
+            'temperature': 0.7,
+            'top_p': 0.9,
+            'top_k': 40,
+        })
 
         if not prompt:
             return jsonify({'error': 'Prompt is required'}), 400
 
-        if stream:
-            async def generate_stream():
-                async for part in ollama_client.generate(model=model, prompt=prompt, stream=True):
-                    yield f"data: {json.dumps({'response': part['response']})}\n\n"
-            return Response(generate_stream(), mimetype='text/event-stream')
-        else:
-            response = await ollama_client.generate(model=model, prompt=prompt)
-            return jsonify({'response': response['response']})
+        try:
+            if stream:
+                async def generate_stream():
+                    async for part in ollama_client.generate(
+                        model=model, 
+                        prompt=prompt, 
+                        stream=True,
+                        options=options
+                    ):
+                        yield f"data: {json.dumps({'response': part['response']})}\n\n"
+                return Response(generate_stream(), mimetype='text/event-stream')
+            else:
+                response = await ollama_client.generate(
+                    model=model, 
+                    prompt=prompt,
+                    options=options
+                )
+                return jsonify({'response': response['response']})
+        except ConnectionError:
+            error_msg = "Failed to connect to Ollama. Please ensure Ollama is running."
+            logger.error(error_msg)
+            return jsonify({'error': error_msg}), 503
     except Exception as e:
         logger.error(f"Generate error: {str(e)}")
         return jsonify({'error': str(e)}), 500

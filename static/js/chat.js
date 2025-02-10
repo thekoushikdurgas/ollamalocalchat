@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const reader = new FileReader();
             reader.onload = function(e) {
                 currentImageData = e.target.result.split(',')[1]; // Get base64 data
-                
+
                 // Create or update image preview
                 let preview = document.getElementById('imagePreview');
                 if (!preview) {
@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 preview.src = e.target.result;
                 preview.style.display = 'block';
-                
+
                 // Add remove button
                 let removeBtn = document.getElementById('removeImage');
                 if (!removeBtn) {
@@ -350,7 +350,12 @@ createModelSubmit.addEventListener('click', async () => {
                     model: document.getElementById('modelSelect').value,
                     image: currentImageData,
                     stream: endpoint !== '/multimodal-chat',  // Disable streaming for multimodal
-                    format: format // Added format to the request body
+                    format: format, // Added format to the request body
+                    options: {
+                        temperature: parseFloat(document.getElementById('temperature')?.value || 0.7),
+                        top_p: parseFloat(document.getElementById('top_p')?.value || 0.9),
+                        top_k: parseInt(document.getElementById('top_k')?.value || 40)
+                    }
                 })
             });
 
@@ -544,10 +549,10 @@ createModelSubmit.addEventListener('click', async () => {
     comicButton.title = 'Analyze XKCD Comic';
     comicButton.onclick = async () => {
         const comicNum = prompt('Enter XKCD comic number (leave empty for random):');
-        
+
         // Add loading message
         const loadingMessage = addMessage('Analyzing comic...', 'bot');
-        
+
         try {
             const response = await fetch('/analyze-comic', {
                 method: 'POST',
@@ -556,7 +561,7 @@ createModelSubmit.addEventListener('click', async () => {
                 },
                 body: JSON.stringify({ comic_num: comicNum })
             });
-            
+
             const data = await response.json();
             if (response.ok) {
                 loadingMessage.remove();
@@ -579,7 +584,7 @@ createModelSubmit.addEventListener('click', async () => {
             loadingMessage.textContent = 'Error: ' + error.message;
         }
     };
-    
+
     document.querySelector('.input-group').insertBefore(comicButton, document.querySelector('.send-button'));
     feather.replace();
 
