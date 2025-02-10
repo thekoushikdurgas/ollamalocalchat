@@ -24,21 +24,28 @@ async def chat():
     try:
         data = request.json
         message = data.get('message', '')
+        mode = data.get('mode', 'chat')  # New parameter to determine the mode
 
         if not message:
             return jsonify({'error': 'Message is required'}), 400
 
-        # Call Ollama API asynchronously
-        response = await ollama_client.chat(model='llama2', messages=[
-            {
-                'role': 'user',
-                'content': message
-            }
-        ])
-
-        return jsonify({
-            'response': response['message']['content']
-        })
+        if mode == 'generate':
+            # Use generate mode
+            response = await ollama_client.generate('llama2', prompt=message)
+            return jsonify({
+                'response': response['response']
+            })
+        else:
+            # Use chat mode
+            response = await ollama_client.chat(model='llama2', messages=[
+                {
+                    'role': 'user',
+                    'content': message
+                }
+            ])
+            return jsonify({
+                'response': response['message']['content']
+            })
 
     except Exception as e:
         logger.error(f"Error in chat endpoint: {str(e)}")
