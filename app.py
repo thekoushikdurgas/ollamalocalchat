@@ -1,7 +1,9 @@
 import logging
 import os
 from flask import Flask, render_template, request, jsonify
-from ollama import Client
+from ollama import AsyncClient
+import hypercorn
+from hypercorn.config import Config
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -11,14 +13,14 @@ app = Flask(__name__)
 app.secret_key = "chatbot_secret_key"
 
 # Initialize Ollama client
-ollama_client = Client()
+ollama_client = AsyncClient()
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/chat', methods=['POST'])
-def chat():
+async def chat():
     try:
         data = request.json
         message = data.get('message', '')
@@ -26,8 +28,8 @@ def chat():
         if not message:
             return jsonify({'error': 'Message is required'}), 400
 
-        # Call Ollama API
-        response = ollama_client.chat(model='llama2', messages=[
+        # Call Ollama API asynchronously
+        response = await ollama_client.chat(model='llama2', messages=[
             {
                 'role': 'user',
                 'content': message
@@ -43,7 +45,7 @@ def chat():
         return jsonify({'error': 'Failed to generate response'}), 500
 
 @app.route('/messages', methods=['GET'])
-def get_messages():
+async def get_messages():
     # For now, return an empty list since we're not storing messages
     return jsonify([])
 
@@ -56,4 +58,6 @@ def internal_error(error):
     return render_template('index.html'), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    config = Config()
+    config.bind = ["0.0.0.0:5000"]
+    hypercorn.run(app, config)
