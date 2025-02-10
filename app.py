@@ -3,6 +3,8 @@ import os
 from flask import Flask, render_template, request, jsonify
 import ollama
 from models import db, Message
+import asyncio
+from ollama import AsyncClient
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -22,12 +24,25 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
+# Initialize Ollama async client
+ollama_client = AsyncClient()
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
+async def get_ollama_response(message):
+    """Async function to get response from Ollama"""
+    try:
+        messages = [{'role': 'user', 'content': message}]
+        response = await ollama_client.chat('llama2', messages=messages)
+        return response['message']['content']
+    except Exception as e:
+        logger.error(f"Error getting Ollama response: {str(e)}")
+        raise
+
 @app.route('/chat', methods=['POST'])
-def chat():
+async def chat():
     try:
         data = request.json
         message = data.get('message', '')
@@ -40,16 +55,11 @@ def chat():
         db.session.add(user_message)
         db.session.commit()
 
-        # Call Ollama API
-        response = ollama.chat(model='llama2', messages=[
-            {
-                'role': 'user',
-                'content': message
-            }
-        ])
+        # Get response from Ollama asynchronously
+        bot_response = await get_ollama_response(message)
 
         # Save bot response to database
-        bot_message = Message(role='bot', content=response['message']['content'])
+        bot_message = Message(role='bot', content=bot_response)
         db.session.add(bot_message)
         db.session.commit()
 
