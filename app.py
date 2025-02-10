@@ -55,6 +55,7 @@ async def generate_code():
         prompt = data.get('prompt', '')
         suffix = data.get('suffix', '')
         model = data.get('model', 'codellama:7b-code')
+        mode = data.get('mode', 'complete')  # 'complete' or 'fill-in-middle'
 
         if not prompt:
             return jsonify({'error': 'Prompt is required'}), 400
@@ -63,7 +64,7 @@ async def generate_code():
             response = await ollama_client.generate(
                 model=model,
                 prompt=prompt,
-                suffix=suffix,
+                suffix=suffix if mode == 'fill-in-middle' else '',
                 options={
                     'num_predict': 128,
                     'temperature': 0,
@@ -86,20 +87,82 @@ async def generate_response():
         prompt = data.get('prompt', '')
         model = data.get('model', 'llama2')
         stream = data.get('stream', True)
+        options = data.get('options', {
+            'temperature': 0.7,
+            'top_p': 0.9,
+            'top_k': 40,
+        })
 
         if not prompt:
             return jsonify({'error': 'Prompt is required'}), 400
 
-        if stream:
-            async def generate_stream():
-                async for part in ollama_client.generate(model=model, prompt=prompt, stream=True):
-                    yield f"data: {json.dumps({'response': part['response']})}\n\n"
-            return Response(generate_stream(), mimetype='text/event-stream')
-        else:
-            response = await ollama_client.generate(model=model, prompt=prompt)
-            return jsonify({'response': response['response']})
+        try:
+            if stream:
+                async def generate_stream():
+                    async for part in ollama_client.generate(
+                        model=model, 
+                        prompt=prompt, 
+                        stream=True,
+                        options=options
+                    ):
+                        yield f"data: {json.dumps({'response': part['response']})}\n\n"
+                return Response(generate_stream(), mimetype='text/event-stream')
+            else:
+                response = await ollama_client.generate(
+                    model=model, 
+                    prompt=prompt,
+                    options=options
+                )
+                return jsonify({'response': response['response']})
+        except ConnectionError:
+            error_msg = "Failed to connect to Ollama. Please ensure Ollama is running."
+            logger.error(error_msg)
+            return jsonify({'error': error_msg}), 503
     except Exception as e:
         logger.error(f"Generate error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/analyze-comic', methods=['POST'])
+async def analyze_comic():
+    try:
+        import random
+        import httpx
+
+        data = request.json
+        comic_num = data.get('comic_num')
+        
+        async with httpx.AsyncClient() as client:
+            latest = await client.get('https://xkcd.com/info.0.json')
+            latest.raise_for_status()
+            
+            if not comic_num:
+                comic_num = random.randint(1, latest.json().get('num'))
+                
+            comic = await client.get(f'https://xkcd.com/{comic_num}/info.0.json')
+            comic.raise_for_status()
+            comic_data = comic.json()
+            
+            raw = await client.get(comic_data.get('img'))
+            raw.raise_for_status()
+            
+            response = await ollama_client.generate(
+                model='llava',
+                prompt='explain this comic:',
+                images=[raw.content],
+                stream=False
+            )
+            
+            return jsonify({
+                'comic_num': comic_data.get('num'),
+                'title': comic_data.get('title'),
+                'alt': comic_data.get('alt'),
+                'link': f'https://xkcd.com/{comic_num}',
+                'image_url': comic_data.get('img'),
+                'explanation': response['response']
+            })
+            
+    except Exception as e:
+        logger.error(f"Comic analysis error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/multimodal-chat', methods=['POST'])
@@ -113,16 +176,29 @@ async def multimodal_chat():
         if not message:
             return jsonify({'error': 'Message is required'}), 400
 
-        messages = [{'role': 'user', 'content': message}]
-        if image_data:
-            messages[0]['images'] = [image_data]
+        messages = [{
+            'role': 'user',
+            'content': message,
+            'images': [image_data] if image_data else []
+        }]
 
         try:
             response = await ollama_client.chat(
                 model=model,
-                messages=messages
+                messages=messages,
+                options={
+                    'temperature': 0.7,
+                    'top_p': 0.9,
+                }
             )
-            return jsonify({'response': response['message']['content']})
+            
+            # Add image thumbnail to response if image was analyzed
+            response_data = {
+                'response': response['message']['content'],
+                'has_image': bool(image_data)
+            }
+            
+            return jsonify(response_data)
         except Exception as e:
             logger.error(f"Multimodal chat error: {str(e)}")
             return jsonify({'error': str(e)}), 500
@@ -138,6 +214,7 @@ async def chat():
         mode = data.get('mode', 'chat')
         model = data.get('model', 'llama2')  # Default to llama2
         stream = data.get('stream', True)  # Enable streaming by default
+        format = data.get('format') #Added format parameter
 
         if not message:
             return jsonify({'error': 'Message is required'}), 400
@@ -173,7 +250,7 @@ async def chat():
                         tools=TOOL_DEFINITIONS,
                         options={'temperature': 0}
                     )
-                    
+
                     if response.message.tool_calls:
                         outputs = []
                         for tool in response.message.tool_calls:
@@ -185,7 +262,7 @@ async def chat():
                                     'content': str(output),
                                     'name': tool.function.name
                                 })
-                        
+
                         # Get final response with tool outputs
                         final_response = await ollama_client.chat(
                             model=model,
@@ -250,11 +327,42 @@ async def chat():
 
                     return Response(generate_stream(), mimetype='text/event-stream')
                 else:
-                    response = await ollama_client.chat(
-                        model=model,
-                        messages=session['messages']
-                    )
-                    bot_response = response['message']['content']
+                    format_schema = None
+                    structured_data = None
+                    
+                    # Detect keywords for structured output
+                    message_lower = message.lower()
+                    if 'friends' in message_lower:
+                        format_schema = FriendList.model_json_schema()
+                    elif 'weather' in message_lower:
+                        format_schema = WeatherInfo.model_json_schema()
+                    elif 'recipe' in message_lower:
+                        format_schema = RecipeInfo.model_json_schema()
+
+                    if format_schema:
+                        response = await ollama_client.chat(
+                            model=model,
+                            messages=session['messages'],
+                            format=format_schema,
+                            options={'temperature': 0}
+                        )
+                        try:
+                            if 'friends' in message_lower:
+                                structured_data = FriendList.model_validate_json(response['message']['content'])
+                            elif 'weather' in message_lower:
+                                structured_data = WeatherInfo.model_validate_json(response['message']['content'])
+                            elif 'recipe' in message_lower:
+                                structured_data = RecipeInfo.model_validate_json(response['message']['content'])
+                            bot_response = json.dumps(structured_data.model_dump(), indent=2)
+                        except Exception as e:
+                            logger.error(f"Structured output validation error: {str(e)}")
+                            bot_response = response['message']['content']
+                    else:
+                        response = await ollama_client.chat(
+                            model=model,
+                            messages=session['messages']
+                        )
+                        bot_response = response['message']['content']
 
             # Add bot response to history
             session['messages'].append({
@@ -296,16 +404,16 @@ async def create_model():
         client = AsyncClient()
         session['pull_progress'] = {}
         current_digest = ''
-        
+
         try:
             async for progress in client.pull(base_model, stream=True):
                 digest = progress.get('digest', '')
                 status = progress.get('status', '')
-                
+
                 if status:
                     session['pull_progress']['status'] = status
                     continue
-                    
+
                 if digest:
                     if 'total' in progress:
                         if digest not in session['pull_progress']:
@@ -316,7 +424,7 @@ async def create_model():
                             }
                     if 'completed' in progress:
                         session['pull_progress'][digest]['completed'] = progress['completed']
-                    
+
                 current_digest = digest
 
         except Exception as e:
@@ -354,11 +462,11 @@ async def create_chat():
                 system=system_prompt,
                 stream=False
             )
-            
+
             # Clear session messages for new chat
             session['messages'] = []
             session['current_chat'] = name
-            
+
             return jsonify({'status': 'success', 'name': name})
         except Exception as e:
             logger.error(f"Chat creation error: {str(e)}")
@@ -384,15 +492,34 @@ async def generate_embedding():
         data = request.json
         text = data.get('text', '')
         model = data.get('model', 'llama2')
+        batch = data.get('batch', False)
+        texts = data.get('texts', [])
 
-        if not text:
-            return jsonify({'error': 'Text is required'}), 400
-
-        response = await ollama_client.embeddings(
-            model=model,
-            prompt=text
-        )
-        return jsonify({'embeddings': response['embeddings']})
+        if batch:
+            if not texts:
+                return jsonify({'error': 'Texts array is required for batch embedding'}), 400
+            responses = []
+            for t in texts:
+                response = await ollama_client.embeddings(
+                    model=model,
+                    prompt=t
+                )
+                responses.append(response['embeddings'])
+            return jsonify({'embeddings': responses})
+        else:
+            if not text:
+                return jsonify({'error': 'Text is required'}), 400
+            response = await ollama_client.embeddings(
+                model=model,
+                prompt=text
+            )
+            return jsonify({
+                'embeddings': response['embeddings'],
+                'metadata': {
+                    'model': model,
+                    'dimensions': len(response['embeddings'])
+                }
+            })
     except Exception as e:
         logger.error(f"Embedding error: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -423,23 +550,27 @@ async def list_models():
     try:
         response = await ollama_client.list()
         models = []
-        for model in response['models']:
+        for model in response.models:
             model_info = {
-                'name': model['name'],  # Accessing name correctly
-                'size': f"{(model['size'] / 1024 / 1024):.2f} MB"
+                'name': model.model,
+                'size': f"{(model.size / 1024 / 1024):.2f} MB"
             }
-            if 'details' in model:
+            if model.details:
                 model_info.update({
-                    'format': model['details'].get('format'),
-                    'family': model['details'].get('family'),
-                    'parameter_size': model['details'].get('parameter_size'),
-                    'quantization_level': model['details'].get('quantization_level')
+                    'format': model.details.format,
+                    'family': model.details.family,
+                    'parameter_size': model.details.parameter_size,
+                    'quantization_level': model.details.quantization_level
                 })
             models.append(model_info)
         return jsonify(models)
+    except ConnectionError:
+        error_msg = "Failed to connect to Ollama. Please ensure Ollama is running."
+        logger.error(error_msg)
+        return jsonify({'error': error_msg, 'models': []}), 503
     except Exception as e:
         logger.error(f"Error listing models: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': str(e), 'models': []}), 500
 
 @app.errorhandler(404)
 def not_found_error(error):

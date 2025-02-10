@@ -16,14 +16,43 @@ document.addEventListener('DOMContentLoaded', function() {
             const reader = new FileReader();
             reader.onload = function(e) {
                 currentImageData = e.target.result.split(',')[1]; // Get base64 data
-                const preview = document.getElementById('imagePreview');
-                if (preview) {
-                    preview.src = e.target.result;
-                    preview.style.display = 'block';
+
+                // Create or update image preview
+                let preview = document.getElementById('imagePreview');
+                if (!preview) {
+                    preview = document.createElement('img');
+                    preview.id = 'imagePreview';
+                    preview.className = 'image-preview';
+                    document.querySelector('.chat-input-container').insertBefore(
+                        preview, 
+                        document.getElementById('chatForm')
+                    );
+                }
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+
+                // Add remove button
+                let removeBtn = document.getElementById('removeImage');
+                if (!removeBtn) {
+                    removeBtn = document.createElement('button');
+                    removeBtn.id = 'removeImage';
+                    removeBtn.className = 'remove-image-btn';
+                    removeBtn.innerHTML = '<i data-feather="x"></i>';
+                    removeBtn.onclick = clearImageUpload;
+                    preview.parentElement.appendChild(removeBtn);
+                    feather.replace();
                 }
             };
             reader.readAsDataURL(file);
         }
+    }
+
+    function clearImageUpload() {
+        currentImageData = null;
+        const preview = document.getElementById('imagePreview');
+        const removeBtn = document.getElementById('removeImage');
+        if (preview) preview.remove();
+        if (removeBtn) removeBtn.remove();
     }
 
     // Add image upload button to chat form
@@ -38,20 +67,37 @@ document.addEventListener('DOMContentLoaded', function() {
     async function fetchModels() {
         try {
             const response = await fetch('/models');
-            const models = await response.json();
+            const data = await response.json();
             const modelSelect = document.getElementById('modelSelect');
             modelSelect.innerHTML = ''; // Clear existing options
 
-            models.forEach(model => {
-                const option = document.createElement('option');
-                option.value = model.name;
-                option.textContent = `${model.name} (${model.size})`;
-                modelSelect.appendChild(option);
-            });
+            if (response.ok && !data.error) {
+                data.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.name;
+                    let modelText = model.name;
+                    if (model.size) modelText += ` (${model.size})`;
+                    if (model.family) modelText += ` - ${model.family}`;
+                    option.textContent = modelText;
+                    modelSelect.appendChild(option);
+                });
+            } else {
+                const errorOption = document.createElement('option');
+                errorOption.value = '';
+                errorOption.textContent = data.error || 'Error loading models';
+                errorOption.disabled = true;
+                modelSelect.appendChild(errorOption);
+                console.error('Model fetch error:', data.error);
+            }
         } catch (error) {
             console.error('Error fetching models:', error);
+            const modelSelect = document.getElementById('modelSelect');
+            modelSelect.innerHTML = '<option disabled>Failed to load models</option>';
         }
     }
+
+    // Refresh models list periodically
+    setInterval(fetchModels, 30000); // Every 30 seconds
 
     // Fetch models on page load
     fetchModels();
@@ -110,24 +156,24 @@ document.addEventListener('DOMContentLoaded', function() {
 async function trackPullProgress() {
     const progressArea = document.getElementById('pullProgress');
     const progressBars = {};
-    
+
     while (true) {
         const response = await fetch('/pull-progress');
         const progress = await response.json();
-        
+
         if (progress.status) {
             const statusDiv = document.createElement('div');
             statusDiv.textContent = progress.status;
             progressArea.appendChild(statusDiv);
             continue;
         }
-        
+
         for (const [digest, info] of Object.entries(progress)) {
             if (!progressBars[digest] && info.total) {
                 progressBars[digest] = createProgressBar(info.digest_short);
                 progressArea.appendChild(progressBars[digest]);
             }
-            
+
             if (info.completed && info.total) {
                 const percent = (info.completed / info.total) * 100;
                 const bar = progressBars[digest].querySelector('.progress-bar');
@@ -135,7 +181,7 @@ async function trackPullProgress() {
                 bar.textContent = `${Math.round(percent)}%`;
             }
         }
-        
+
         await new Promise(resolve => setTimeout(resolve, 100));
     }
 }
@@ -144,12 +190,12 @@ createModelSubmit.addEventListener('click', async () => {
         const modelName = document.getElementById('modelName').value;
         const baseModel = document.getElementById('baseModel').value;
         const systemPrompt = document.getElementById('systemPrompt').value;
-        
+
         // Add progress area to modal
         const progressArea = document.createElement('div');
         progressArea.id = 'pullProgress';
         document.querySelector('.modal-content').appendChild(progressArea);
-        
+
         // Start progress tracking
         const progressTracker = trackPullProgress();
 
@@ -246,16 +292,27 @@ createModelSubmit.addEventListener('click', async () => {
     let currentMode = 'chat'; // Default mode
 
     // Handle mode toggle
+    const suffixInput = document.createElement('textarea');
+    suffixInput.id = 'suffixInput';
+    suffixInput.className = 'form-control';
+    suffixInput.placeholder = 'Enter suffix (for fill-in-middle mode)';
+    suffixInput.style.display = 'none';
+    document.querySelector('.input-group').appendChild(suffixInput);
+
     modeButtons.forEach(button => {
         button.addEventListener('click', () => {
             modeButtons.forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
             currentMode = button.dataset.mode;
 
+            // Show/hide suffix input for fill-in-middle mode
+            suffixInput.style.display = currentMode === 'fill-in-middle' ? 'block' : 'none';
+
             // Update placeholder based on mode
-            messageInput.placeholder = currentMode === 'chat'
-                ? "What's on your mind?"
-                : "Enter your prompt for generation...";
+            messageInput.placeholder = 
+                currentMode === 'chat' ? "What's on your mind?" :
+                currentMode === 'fill-in-middle' ? "Enter your code prefix..." :
+                "Enter your prompt for generation...";
         });
     });
 
@@ -290,6 +347,8 @@ createModelSubmit.addEventListener('click', async () => {
             if (currentImageData) {
                 endpoint = '/multimodal-chat';
             }
+            const formatSelect = document.getElementById('formatSelect'); // Added format selection
+            const format = formatSelect ? formatSelect.value : null;     // Added format value
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
@@ -298,10 +357,17 @@ createModelSubmit.addEventListener('click', async () => {
                 body: JSON.stringify({
                     message: message,
                     prompt: message,  // For generate endpoint
+                    suffix: document.getElementById('suffixInput')?.value || '',  // For fill-in-middle
                     mode: currentMode,
                     model: document.getElementById('modelSelect').value,
                     image: currentImageData,
-                    stream: endpoint !== '/multimodal-chat'  // Disable streaming for multimodal
+                    stream: endpoint !== '/multimodal-chat',  // Disable streaming for multimodal
+                    format: format, // Added format to the request body
+                    options: {
+                        temperature: parseFloat(document.getElementById('temperature')?.value || 0.7),
+                        top_p: parseFloat(document.getElementById('top_p')?.value || 0.9),
+                        top_k: parseInt(document.getElementById('top_k')?.value || 40)
+                    }
                 })
             });
 
@@ -487,6 +553,99 @@ createModelSubmit.addEventListener('click', async () => {
 
 
     //Periodically check model status
+    // Add comic analysis button
+    const comicButton = document.createElement('button');
+    comicButton.type = 'button';
+    comicButton.className = 'btn btn-secondary';
+    comicButton.innerHTML = '<i data-feather="smile"></i>';
+    comicButton.title = 'Analyze XKCD Comic';
+    comicButton.onclick = async () => {
+        const comicNum = prompt('Enter XKCD comic number (leave empty for random):');
+
+        // Add loading message
+        const loadingMessage = addMessage('Analyzing comic...', 'bot');
+
+        try {
+            const response = await fetch('/analyze-comic', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ comic_num: comicNum })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                loadingMessage.remove();
+                const comicMessage = document.createElement('div');
+                comicMessage.className = 'bot-message comic-analysis';
+                comicMessage.innerHTML = `
+                    <h3>XKCD #${data.comic_num}: ${data.title}</h3>
+                    <img src="${data.image_url}" alt="${data.alt}" style="max-width: 100%; margin: 10px 0;">
+                    <p><strong>Alt text:</strong> ${data.alt}</p>
+                    <p><strong>Link:</strong> <a href="${data.link}" target="_blank">${data.link}</a></p>
+                    <p><strong>AI Explanation:</strong></p>
+                    <p>${data.explanation}</p>
+                `;
+                chatMessages.appendChild(comicMessage);
+                scrollToBottom();
+            } else {
+                loadingMessage.textContent = 'Error: ' + (data.error || 'Failed to analyze comic');
+            }
+        } catch (error) {
+            loadingMessage.textContent = 'Error: ' + error.message;
+        }
+    };
+
+    document.querySelector('.input-group').insertBefore(comicButton, document.querySelector('.send-button'));
+    feather.replace();
+
     setInterval(checkProcessStatus, 5000); // Check every 5 seconds
 
 });
+
+async function getEmbedding(text, model = 'llama2') {
+    try {
+        const response = await fetch('/embed', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                text: text,
+                model: model
+            })
+        });
+        const data = await response.json();
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        return data;
+    } catch (error) {
+        console.error('Embedding error:', error);
+        throw error;
+    }
+}
+
+async function init() {
+    //  Add initialization logic here if needed.  This function is now available.
+}
+
+function appendMessage(message, isUser = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = isUser ? 'user-message' : 'bot-message';
+
+    // Try to parse as JSON for structured outputs
+    try {
+        const jsonData = JSON.parse(message);
+        const pre = document.createElement('pre');
+        pre.className = 'structured-output';
+        pre.textContent = JSON.stringify(jsonData, null, 2);
+        messageDiv.appendChild(pre);
+    } catch (e) {
+        messageDiv.textContent = message;
+    }
+
+    chatMessages.appendChild(messageDiv);
+    scrollToBottom();
+}
