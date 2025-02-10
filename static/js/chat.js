@@ -493,3 +493,22 @@ createModelSubmit.addEventListener('click', async () => {
     setInterval(checkProcessStatus, 5000); // Check every 5 seconds
 
 });
+
+function appendMessage(message, isUser = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = isUser ? 'user-message' : 'bot-message';
+
+    // Try to parse as JSON for structured outputs
+    try {
+        const jsonData = JSON.parse(message);
+        const pre = document.createElement('pre');
+        pre.className = 'structured-output';
+        pre.textContent = JSON.stringify(jsonData, null, 2);
+        messageDiv.appendChild(pre);
+    } catch (e) {
+        messageDiv.textContent = message;
+    }
+
+    chatMessages.appendChild(messageDiv);
+    scrollToBottom();
+}

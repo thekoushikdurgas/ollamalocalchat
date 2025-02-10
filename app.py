@@ -251,18 +251,42 @@ async def chat():
 
                     return Response(generate_stream(), mimetype='text/event-stream')
                 else:
-                    if format:
+                    format_schema = None
+                    structured_data = None
+                    
+                    # Detect keywords for structured output
+                    message_lower = message.lower()
+                    if 'friends' in message_lower:
+                        format_schema = FriendList.model_json_schema()
+                    elif 'weather' in message_lower:
+                        format_schema = WeatherInfo.model_json_schema()
+                    elif 'recipe' in message_lower:
+                        format_schema = RecipeInfo.model_json_schema()
+
+                    if format_schema:
                         response = await ollama_client.chat(
                             model=model,
                             messages=session['messages'],
-                            format=format
+                            format=format_schema,
+                            options={'temperature': 0}
                         )
+                        try:
+                            if 'friends' in message_lower:
+                                structured_data = FriendList.model_validate_json(response['message']['content'])
+                            elif 'weather' in message_lower:
+                                structured_data = WeatherInfo.model_validate_json(response['message']['content'])
+                            elif 'recipe' in message_lower:
+                                structured_data = RecipeInfo.model_validate_json(response['message']['content'])
+                            bot_response = json.dumps(structured_data.model_dump(), indent=2)
+                        except Exception as e:
+                            logger.error(f"Structured output validation error: {str(e)}")
+                            bot_response = response['message']['content']
                     else:
                         response = await ollama_client.chat(
                             model=model,
                             messages=session['messages']
                         )
-                    bot_response = response['message']['content']
+                        bot_response = response['message']['content']
 
             # Add bot response to history
             session['messages'].append({

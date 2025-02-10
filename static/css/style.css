@@ -229,11 +229,11 @@ body {
 }
 
 .bot-message {
-    background-color: white;
-    color: var(--text-primary);
-    margin-right: auto;
-    border-bottom-left-radius: 4px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    background-color: #f0f0f0;
+    margin: 5px;
+    padding: 10px;
+    border-radius: 5px;
+    max-width: 80%;
 }
 
 .message-actions {
@@ -434,6 +434,16 @@ body {
 
 #formatSelect {
     background-color: #f8f9fa;
+}
+
+.structured-output {
+    background-color: #2d2d2d;
+    color: #ffffff;
+    padding: 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-family: monospace;
+    margin: 0;
 }
 
 @media (max-width: 768px) {

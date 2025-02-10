@@ -14,6 +14,13 @@ class Message(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 # Structured output models
+from typing import Optional, Any
+
+class ChatResponse(BaseModel):
+    content: str
+    format_type: Optional[str] = None
+    structured_data: Optional[Any] = None
+
 class FriendInfo(BaseModel):
     name: str
     age: int
