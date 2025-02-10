@@ -75,9 +75,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 data.forEach(model => {
                     const option = document.createElement('option');
                     option.value = model.name;
-                    let modelText = model.name;
+                    let modelText = `${model.name}`;
                     if (model.size) modelText += ` (${model.size})`;
-                    if (model.family) modelText += ` - ${model.family}`;
+                    if (model.format) modelText += ` | ${model.format}`;
+                    if (model.family) modelText += ` | ${model.family}`;
+                    if (model.parameter_size) modelText += ` | ${model.parameter_size}`;
+                    if (model.quantization_level) modelText += ` | ${model.quantization_level}`;
                     option.textContent = modelText;
                     modelSelect.appendChild(option);
                 });
