@@ -30,13 +30,13 @@ async def chat():
             return jsonify({'error': 'Message is required'}), 400
 
         if mode == 'generate':
-            # Use generate mode
+            # Use generate mode for simpler, direct responses
             response = await ollama_client.generate('llama2', prompt=message)
             return jsonify({
                 'response': response['response']
             })
         else:
-            # Use chat mode
+            # Use chat mode for conversational responses
             response = await ollama_client.chat(model='llama2', messages=[
                 {
                     'role': 'user',
