@@ -3,6 +3,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const messageInput = document.getElementById('messageInput');
     const chatMessages = document.getElementById('chatMessages');
 
+    // Load previous messages
+    loadMessages();
+
     // Auto-resize textarea
     messageInput.addEventListener('input', function() {
         this.style.height = 'auto';
@@ -12,13 +15,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle form submission
     chatForm.addEventListener('submit', async function(e) {
         e.preventDefault();
-        
+
         const message = messageInput.value.trim();
         if (!message) return;
 
         // Add user message to chat
         addMessage(message, 'user');
-        
+
         // Clear input
         messageInput.value = '';
         messageInput.style.height = 'auto';
@@ -36,7 +39,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             const data = await response.json();
-            
+
             // Remove loading indicator
             loadingIndicator.remove();
 
@@ -55,14 +58,34 @@ document.addEventListener('DOMContentLoaded', function() {
         scrollToBottom();
     });
 
+    async function loadMessages() {
+        try {
+            const response = await fetch('/messages');
+            const messages = await response.json();
+
+            // Clear welcome message if there are previous messages
+            if (messages.length > 0) {
+                chatMessages.innerHTML = '';
+            }
+
+            messages.forEach(message => {
+                addMessage(message.content, message.role);
+            });
+
+            scrollToBottom();
+        } catch (error) {
+            console.error('Error loading messages:', error);
+        }
+    }
+
     function addMessage(content, type) {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message', `${type}-message`);
-        
+
         const textContent = document.createElement('p');
         textContent.textContent = content;
         messageDiv.appendChild(textContent);
-        
+
         chatMessages.appendChild(messageDiv);
         scrollToBottom();
     }
@@ -70,19 +93,19 @@ document.addEventListener('DOMContentLoaded', function() {
     function addLoadingIndicator() {
         const loadingDiv = document.createElement('div');
         loadingDiv.classList.add('loading-indicator');
-        
+
         const loadingDots = document.createElement('div');
         loadingDots.classList.add('loading-dots');
-        
+
         for (let i = 0; i < 3; i++) {
             const dot = document.createElement('span');
             loadingDots.appendChild(dot);
         }
-        
+
         loadingDiv.appendChild(loadingDots);
         chatMessages.appendChild(loadingDiv);
         scrollToBottom();
-        
+
         return loadingDiv;
     }
 
