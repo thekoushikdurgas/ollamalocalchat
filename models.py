@@ -1,13 +1,17 @@
 from datetime import datetime
-from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import Column, Integer, String, Text, DateTime
 
-db = SQLAlchemy()
+class Base(DeclarativeBase):
+    pass
 
-class Message(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    role = db.Column(db.String(10), nullable=False)  # 'user' or 'bot'
-    content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+class Message(Base):
+    __tablename__ = 'messages'
+
+    id = Column(Integer, primary_key=True)
+    role = Column(String(10), nullable=False)  # 'user' or 'bot'
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     def to_dict(self):
         return {
