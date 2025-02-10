@@ -164,6 +164,40 @@ async def chat():
                 except Exception as e:
                     logger.error(f"Generate mode error: {str(e)}")
                     raise
+            elif mode == 'tools':
+                try:
+                    from tools import TOOL_DEFINITIONS, AVAILABLE_FUNCTIONS
+                    response = await ollama_client.chat(
+                        model=model,
+                        messages=session['messages'],
+                        tools=TOOL_DEFINITIONS,
+                        options={'temperature': 0}
+                    )
+                    
+                    if response.message.tool_calls:
+                        outputs = []
+                        for tool in response.message.tool_calls:
+                            if function_to_call := AVAILABLE_FUNCTIONS.get(tool.function.name):
+                                output = function_to_call(**tool.function.arguments)
+                                outputs.append(output)
+                                session['messages'].append({
+                                    'role': 'tool',
+                                    'content': str(output),
+                                    'name': tool.function.name
+                                })
+                        
+                        # Get final response with tool outputs
+                        final_response = await ollama_client.chat(
+                            model=model,
+                            messages=session['messages']
+                        )
+                        bot_response = final_response.message.content
+                    else:
+                        bot_response = response.message.content
+                except Exception as e:
+                    logger.error(f"Tools mode error: {str(e)}")
+                    raise
+
             elif mode == 'structured':
                 try:
                     # Map keywords to schema models
@@ -241,6 +275,12 @@ async def chat():
         logger.error(f"Request processing error: {str(e)}")
         return jsonify({'error': 'Failed to process request'}), 500
 
+@app.route('/pull-progress', methods=['GET'])
+async def get_pull_progress():
+    if 'pull_progress' not in session:
+        session['pull_progress'] = {}
+    return jsonify(session['pull_progress'])
+
 @app.route('/create-model', methods=['POST'])
 async def create_model():
     try:
@@ -252,7 +292,38 @@ async def create_model():
         if not model_name:
             return jsonify({'error': 'Model name is required'}), 400
 
+        # First pull the base model
         client = AsyncClient()
+        session['pull_progress'] = {}
+        current_digest = ''
+        
+        try:
+            async for progress in client.pull(base_model, stream=True):
+                digest = progress.get('digest', '')
+                status = progress.get('status', '')
+                
+                if status:
+                    session['pull_progress']['status'] = status
+                    continue
+                    
+                if digest:
+                    if 'total' in progress:
+                        if digest not in session['pull_progress']:
+                            session['pull_progress'][digest] = {
+                                'total': progress['total'],
+                                'completed': 0,
+                                'digest_short': digest[7:19]
+                            }
+                    if 'completed' in progress:
+                        session['pull_progress'][digest]['completed'] = progress['completed']
+                    
+                current_digest = digest
+
+        except Exception as e:
+            logger.error(f"Error pulling model: {str(e)}")
+            return jsonify({'error': f"Error pulling model: {str(e)}"}), 500
+
+        # Then create the custom model
         response = await client.create(
             model=model_name,
             from_=base_model,
@@ -265,6 +336,38 @@ async def create_model():
         logger.error(f"Model creation error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/create-chat', methods=['POST'])
+async def create_chat():
+    try:
+        data = request.json
+        name = data.get('name')
+        base_model = data.get('base_model', 'llama2')
+        system_prompt = data.get('system_prompt', '')
+
+        if not name:
+            return jsonify({'error': 'Chat name is required'}), 400
+
+        try:
+            response = await ollama_client.create(
+                model=f'chat-{name.lower().replace(" ", "-")}',
+                from_=base_model,
+                system=system_prompt,
+                stream=False
+            )
+            
+            # Clear session messages for new chat
+            session['messages'] = []
+            session['current_chat'] = name
+            
+            return jsonify({'status': 'success', 'name': name})
+        except Exception as e:
+            logger.error(f"Chat creation error: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+    except Exception as e:
+        logger.error(f"Request processing error: {str(e)}")
+        return jsonify({'error': 'Failed to process request'}), 500
+
 @app.route('/clear', methods=['POST'])
 async def clear_history():
     session['messages'] = []
@@ -274,6 +377,46 @@ async def clear_history():
 async def get_messages():
     # For now, return an empty list since we're not storing messages
     return jsonify([])
+
+@app.route('/embed', methods=['POST'])
+async def generate_embedding():
+    try:
+        data = request.json
+        text = data.get('text', '')
+        model = data.get('model', 'llama2')
+
+        if not text:
+            return jsonify({'error': 'Text is required'}), 400
+
+        response = await ollama_client.embeddings(
+            model=model,
+            prompt=text
+        )
+        return jsonify({'embeddings': response['embeddings']})
+    except Exception as e:
+        logger.error(f"Embedding error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/process-status', methods=['GET'])
+async def get_process_status():
+    try:
+        response = await ollama_client.ps()
+        models_status = []
+        for model in response.models:
+            model_info = {
+                'model': model.model,
+                'digest': model.digest,
+                'size': f"{(model.size / 1024 / 1024):.2f} MB",
+                'size_vram': f"{(model.size_vram / 1024 / 1024):.2f} MB",
+                'details': model.details
+            }
+            if model.expires_at:
+                model_info['expires_at'] = model.expires_at
+            models_status.append(model_info)
+        return jsonify(models_status)
+    except Exception as e:
+        logger.error(f"Error getting process status: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/models', methods=['GET'])
 async def list_models():

@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
     uploadButton.innerHTML = '<i data-feather="image"></i>';
     uploadButton.onclick = () => imageInput.click();
     document.querySelector('.input-group').insertBefore(uploadButton, document.querySelector('.send-button'));
-    
+
     // Fetch available models
     async function fetchModels() {
         try {
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const models = await response.json();
             const modelSelect = document.getElementById('modelSelect');
             modelSelect.innerHTML = ''; // Clear existing options
-            
+
             models.forEach(model => {
                 const option = document.createElement('option');
                 option.value = model.name;
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Fetch models on page load
     fetchModels();
-    
+
     async function generateCode(prompt, suffix = '') {
         try {
             const response = await fetch('/generate-code', {
@@ -79,8 +79,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const createModelBtn = document.getElementById('createModelBtn');
     const modelModal = document.getElementById('modelModal');
     const closeModal = document.getElementById('closeModal');
-    const createModelSubmit = document.getElementById('createModelSubmit');
-    const modelSelect = document.getElementById('modelSelect');
+    const newChatBtn = document.querySelector('.new-chat-btn');
+    const chatModal = document.getElementById('chatModal');
+    const closeChatModal = document.getElementById('closeChatModal');
+    const createChatBtn = document.getElementById('createChatBtn');
 
     createModelBtn.addEventListener('click', () => {
         modelModal.style.display = 'block';
@@ -90,10 +92,66 @@ document.addEventListener('DOMContentLoaded', function() {
         modelModal.style.display = 'none';
     });
 
-    createModelSubmit.addEventListener('click', async () => {
+    const createModelSubmit = document.getElementById('createModelSubmit');
+    const modelSelect = document.getElementById('modelSelect');
+
+    function createProgressBar(digest) {
+    const progressContainer = document.createElement('div');
+    progressContainer.className = 'progress-container';
+    progressContainer.innerHTML = `
+        <div class="progress-label">Pulling ${digest}</div>
+        <div class="progress">
+            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+        </div>
+    `;
+    return progressContainer;
+}
+
+async function trackPullProgress() {
+    const progressArea = document.getElementById('pullProgress');
+    const progressBars = {};
+    
+    while (true) {
+        const response = await fetch('/pull-progress');
+        const progress = await response.json();
+        
+        if (progress.status) {
+            const statusDiv = document.createElement('div');
+            statusDiv.textContent = progress.status;
+            progressArea.appendChild(statusDiv);
+            continue;
+        }
+        
+        for (const [digest, info] of Object.entries(progress)) {
+            if (!progressBars[digest] && info.total) {
+                progressBars[digest] = createProgressBar(info.digest_short);
+                progressArea.appendChild(progressBars[digest]);
+            }
+            
+            if (info.completed && info.total) {
+                const percent = (info.completed / info.total) * 100;
+                const bar = progressBars[digest].querySelector('.progress-bar');
+                bar.style.width = `${percent}%`;
+                bar.textContent = `${Math.round(percent)}%`;
+            }
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+}
+
+createModelSubmit.addEventListener('click', async () => {
         const modelName = document.getElementById('modelName').value;
         const baseModel = document.getElementById('baseModel').value;
         const systemPrompt = document.getElementById('systemPrompt').value;
+        
+        // Add progress area to modal
+        const progressArea = document.createElement('div');
+        progressArea.id = 'pullProgress';
+        document.querySelector('.modal-content').appendChild(progressArea);
+        
+        // Start progress tracking
+        const progressTracker = trackPullProgress();
 
         try {
             const response = await fetch('/create-model', {
@@ -125,6 +183,62 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Failed to create model');
         }
     });
+
+    // New chat modal handlers
+    newChatBtn.addEventListener('click', () => {
+        chatModal.style.display = 'block';
+    });
+
+    closeChatModal.addEventListener('click', () => {
+        chatModal.style.display = 'none';
+    });
+
+    createChatBtn.addEventListener('click', async () => {
+        const chatName = document.getElementById('chatName').value;
+        const baseModel = document.getElementById('chatBaseModel').value;
+        const systemPrompt = document.getElementById('chatSystemPrompt').value;
+
+        try {
+            const response = await fetch('/create-chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: chatName,
+                    base_model: baseModel,
+                    system_prompt: systemPrompt
+                })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                // Add new chat to sidebar
+                const conversationsList = document.querySelector('.conversations-list');
+                const newChat = document.createElement('a');
+                newChat.href = '#';
+                newChat.className = 'nav-item';
+                newChat.innerHTML = `
+                    <i data-feather="message-square"></i>
+                    ${chatName}
+                `;
+                conversationsList.insertBefore(newChat, conversationsList.firstChild);
+                feather.replace();
+
+                chatModal.style.display = 'none';
+                // Clear chat messages
+                document.getElementById('chatMessages').innerHTML = '';
+                // Clear form
+                document.getElementById('chatName').value = '';
+                document.getElementById('chatSystemPrompt').value = '';
+            } else {
+                alert('Error creating chat: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to create chat');
+        }
+    });
     const messageInput = document.getElementById('messageInput');
     const chatMessages = document.getElementById('chatMessages');
     const modeButtons = document.querySelectorAll('.mode-button');
@@ -139,8 +253,8 @@ document.addEventListener('DOMContentLoaded', function() {
             currentMode = button.dataset.mode;
 
             // Update placeholder based on mode
-            messageInput.placeholder = currentMode === 'chat' 
-                ? "What's on your mind?" 
+            messageInput.placeholder = currentMode === 'chat'
+                ? "What's on your mind?"
                 : "Enter your prompt for generation...";
         });
     });
@@ -181,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     message: message,
                     prompt: message,  // For generate endpoint
                     mode: currentMode,
@@ -201,10 +315,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 while (true) {
                     const {value, done} = await reader.read();
                     if (done) break;
-                    
+
                     const chunk = decoder.decode(value);
                     const lines = chunk.split('\n');
-                    
+
                     for (const line of lines) {
                         if (line.startsWith('data: ')) {
                             const data = JSON.parse(line.slice(6));
@@ -353,4 +467,26 @@ document.addEventListener('DOMContentLoaded', function() {
     function scrollToBottom() {
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
+
+    async function checkProcessStatus() {
+        try {
+            const response = await fetch('/process-status');
+            const data = await response.json();
+            if (response.ok) {
+                console.log('Process Status:', data);
+                // Update UI with model status -  replace with your actual UI element
+                document.getElementById('modelStatus').textContent = JSON.stringify(data, null, 2);
+                return data;
+            } else {
+                console.error('Error:', data.error);
+            }
+        } catch (error) {
+            console.error('Failed to check process status:', error);
+        }
+    }
+
+
+    //Periodically check model status
+    setInterval(checkProcessStatus, 5000); // Check every 5 seconds
+
 });
