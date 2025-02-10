@@ -292,16 +292,27 @@ createModelSubmit.addEventListener('click', async () => {
     let currentMode = 'chat'; // Default mode
 
     // Handle mode toggle
+    const suffixInput = document.createElement('textarea');
+    suffixInput.id = 'suffixInput';
+    suffixInput.className = 'form-control';
+    suffixInput.placeholder = 'Enter suffix (for fill-in-middle mode)';
+    suffixInput.style.display = 'none';
+    document.querySelector('.input-group').appendChild(suffixInput);
+
     modeButtons.forEach(button => {
         button.addEventListener('click', () => {
             modeButtons.forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
             currentMode = button.dataset.mode;
 
+            // Show/hide suffix input for fill-in-middle mode
+            suffixInput.style.display = currentMode === 'fill-in-middle' ? 'block' : 'none';
+
             // Update placeholder based on mode
-            messageInput.placeholder = currentMode === 'chat'
-                ? "What's on your mind?"
-                : "Enter your prompt for generation...";
+            messageInput.placeholder = 
+                currentMode === 'chat' ? "What's on your mind?" :
+                currentMode === 'fill-in-middle' ? "Enter your code prefix..." :
+                "Enter your prompt for generation...";
         });
     });
 
@@ -346,6 +357,7 @@ createModelSubmit.addEventListener('click', async () => {
                 body: JSON.stringify({
                     message: message,
                     prompt: message,  // For generate endpoint
+                    suffix: document.getElementById('suffixInput')?.value || '',  // For fill-in-middle
                     mode: currentMode,
                     model: document.getElementById('modelSelect').value,
                     image: currentImageData,

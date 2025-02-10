@@ -55,6 +55,7 @@ async def generate_code():
         prompt = data.get('prompt', '')
         suffix = data.get('suffix', '')
         model = data.get('model', 'codellama:7b-code')
+        mode = data.get('mode', 'complete')  # 'complete' or 'fill-in-middle'
 
         if not prompt:
             return jsonify({'error': 'Prompt is required'}), 400
@@ -63,7 +64,7 @@ async def generate_code():
             response = await ollama_client.generate(
                 model=model,
                 prompt=prompt,
-                suffix=suffix,
+                suffix=suffix if mode == 'fill-in-middle' else '',
                 options={
                     'num_predict': 128,
                     'temperature': 0,
