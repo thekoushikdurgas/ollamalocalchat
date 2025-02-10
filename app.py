@@ -337,10 +337,20 @@ async def create_model():
         if not model_name:
             return jsonify({'error': 'Model name is required'}), 400
 
-        # First pull the base model
         client = AsyncClient()
-        session['pull_progress'] = {}
-        current_digest = ''
+        session['pull_progress'] = {'status': 'Initializing model creation...'}
+
+        # Validate base model exists
+        try:
+            models = await client.list()
+            if not any(model.model == base_model for model in models.models):
+                # Pull the base model if it doesn't exist
+                session['pull_progress']['status'] = f'Pulling base model {base_model}...'
+                async for progress in client.pull(base_model, stream=True):
+                    if 'status' in progress:
+                        session['pull_progress']['status'] = progress['status']
+                    elif 'completed' in progress and 'total' in progress:
+                        session['pull_progress']['progress'] = f"{(progress['completed']/progress['total'])*100:.1f}%"
 
         try:
             async for progress in client.pull(base_model, stream=True):

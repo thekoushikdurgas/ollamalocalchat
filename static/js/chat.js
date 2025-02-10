@@ -208,7 +208,13 @@ createModelSubmit.addEventListener('click', async () => {
         // Start progress tracking
         const progressTracker = trackPullProgress();
 
+        const progressArea = document.createElement('div');
+        progressArea.id = 'modelProgress';
+        progressArea.className = 'model-progress';
+        document.querySelector('.modal-content').appendChild(progressArea);
+
         try {
+            progressArea.textContent = 'Starting model creation...';
             const response = await fetch('/create-model', {
                 method: 'POST',
                 headers: {
@@ -220,6 +226,18 @@ createModelSubmit.addEventListener('click', async () => {
                     system_prompt: systemPrompt
                 })
             });
+
+            // Poll for progress updates
+            const progressInterval = setInterval(async () => {
+                const progressResponse = await fetch('/pull-progress');
+                const progress = await progressResponse.json();
+                if (progress.status) {
+                    progressArea.textContent = progress.status;
+                }
+                if (progress.progress) {
+                    progressArea.textContent += ` (${progress.progress})`;
+                }
+            }, 500);
 
             const data = await response.json();
             if (response.ok) {
