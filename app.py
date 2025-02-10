@@ -57,6 +57,7 @@ async def chat():
         message = data.get('message', '')
         mode = data.get('mode', 'chat')
         model = data.get('model', 'llama2')  # Default to llama2
+        stream = data.get('stream', True)  # Enable streaming by default
 
         if not message:
             return jsonify({'error': 'Message is required'}), 400
@@ -123,12 +124,19 @@ async def chat():
                     logger.error(f"Structured output error: {str(e)}")
                     raise
             else:
-                # Regular chat mode
-                response = await ollama_client.chat(
-                    model='llama2',
-                    messages=session['messages']
-                )
-                bot_response = response['message']['content']
+                # Regular chat mode with streaming
+                if stream:
+                    async def generate_stream():
+                        async for part in ollama_client.generate(model=model, prompt=message, stream=True):
+                            yield f"data: {json.dumps({'response': part['response']})}\n\n"
+                    
+                    return Response(generate_stream(), mimetype='text/event-stream')
+                else:
+                    response = await ollama_client.chat(
+                        model=model,
+                        messages=session['messages']
+                    )
+                    bot_response = response['message']['content']
 
             # Add bot response to history
             session['messages'].append({

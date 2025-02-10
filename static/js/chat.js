@@ -125,9 +125,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify({ 
                     message: message,
                     mode: currentMode,
-                    model: document.getElementById('modelSelect').value
+                    model: document.getElementById('modelSelect').value,
+                    stream: true
                 })
             });
+
+            if (response.headers.get('content-type')?.includes('text/event-stream')) {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let currentMessage = '';
+                const messageDiv = addMessage('', 'bot', true);
+                const textContent = messageDiv.querySelector('p');
+
+                while (true) {
+                    const {value, done} = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = JSON.parse(line.slice(6));
+                            currentMessage += data.response;
+                            textContent.textContent = currentMessage;
+                        }
+                    }
+                }
+                return;
+            }
 
             const data = await response.json();
 
