@@ -1,9 +1,34 @@
 import logging
 import os
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, Response
+import json
 from ollama import AsyncClient
 import hypercorn
 from hypercorn.config import Config
+from pydantic import BaseModel
+
+# Define the schema for the response
+class FriendInfo(BaseModel):
+  name: str
+  age: int
+  is_available: bool
+
+
+class FriendList(BaseModel):
+  friends: list[FriendInfo]
+
+
+class WeatherInfo(BaseModel):
+    city: str
+    temperature: float
+    conditions: str
+
+
+class RecipeInfo(BaseModel):
+    name: str
+    ingredients: list[str]
+    instructions: list[str]
+
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -140,34 +165,41 @@ async def chat():
                     logger.error(f"Generate mode error: {str(e)}")
                     raise
             elif mode == 'structured':
-                # Handle structured output requests
                 try:
-                    # Detect the type of structured output needed
-                    if 'friends' in message.lower():
-                        schema = FriendList.model_json_schema()
+                    # Map keywords to schema models
+                    schema_map = {
+                        'friends': FriendList,
+                        'weather': WeatherInfo,
+                        'recipe': RecipeInfo
+                    }
+
+                    # Detect which schema to use based on message content
+                    schema_model = None
+                    for key, model in schema_map.items():
+                        if key in message.lower():
+                            schema_model = model
+                            break
+
+                    if schema_model:
+                        # Get schema and format response
+                        schema = schema_model.model_json_schema()
                         response = await ollama_client.chat(
-                            model='llama2',
+                            model=model,
                             messages=session['messages'],
                             format=schema,
-                            options={'temperature': 0}
+                            options={
+                                'temperature': 0,
+                                'top_p': 0.9,
+                                'num_predict': 128
+                            }
                         )
-                        # Validate response with Pydantic
-                        structured_response = FriendList.model_validate_json(response['message']['content'])
-                        bot_response = structured_response.model_dump_json()
-                    elif 'weather' in message.lower():
-                        schema = WeatherInfo.model_json_schema()
-                        response = await ollama_client.chat(
-                            model='llama2',
-                            messages=session['messages'],
-                            format=schema,
-                            options={'temperature': 0}
-                        )
-                        structured_response = WeatherInfo.model_validate_json(response['message']['content'])
+                        # Validate and format response
+                        structured_response = schema_model.model_validate_json(response['message']['content'])
                         bot_response = structured_response.model_dump_json()
                     else:
                         # Default to regular chat if no structure detected
                         response = await ollama_client.chat(
-                            model='llama2',
+                            model=model,
                             messages=session['messages']
                         )
                         bot_response = response['message']['content']
@@ -180,7 +212,7 @@ async def chat():
                     async def generate_stream():
                         async for part in ollama_client.generate(model=model, prompt=message, stream=True):
                             yield f"data: {json.dumps({'response': part['response']})}\n\n"
-                    
+
                     return Response(generate_stream(), mimetype='text/event-stream')
                 else:
                     response = await ollama_client.chat(
@@ -226,7 +258,7 @@ async def create_model():
             system=system_prompt,
             stream=False
         )
-        
+
         return jsonify({'status': response['status']})
     except Exception as e:
         logger.error(f"Model creation error: {str(e)}")
