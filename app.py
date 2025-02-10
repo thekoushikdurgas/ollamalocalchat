@@ -19,6 +19,37 @@ ollama_client = AsyncClient()
 def index():
     return render_template('index.html')
 
+@app.route('/generate-code', methods=['POST'])
+async def generate_code():
+    try:
+        data = request.json
+        prompt = data.get('prompt', '')
+        suffix = data.get('suffix', '')
+        model = data.get('model', 'codellama:7b-code')
+
+        if not prompt:
+            return jsonify({'error': 'Prompt is required'}), 400
+
+        try:
+            response = await ollama_client.generate(
+                model=model,
+                prompt=prompt,
+                suffix=suffix,
+                options={
+                    'num_predict': 128,
+                    'temperature': 0,
+                    'top_p': 0.9,
+                    'stop': ['< EOT >'],
+                }
+            )
+            return jsonify({'response': response['response']})
+        except Exception as e:
+            logger.error(f"Code generation error: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+    except Exception as e:
+        logger.error(f"Request processing error: {str(e)}")
+        return jsonify({'error': 'Failed to process request'}), 500
+
 @app.route('/chat', methods=['POST'])
 async def chat():
     try:

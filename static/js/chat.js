@@ -1,5 +1,26 @@
 document.addEventListener('DOMContentLoaded', function() {
     const chatForm = document.getElementById('chatForm');
+    
+    async function generateCode(prompt, suffix = '') {
+        try {
+            const response = await fetch('/generate-code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    suffix: suffix,
+                    model: document.getElementById('modelSelect').value
+                })
+            });
+            const data = await response.json();
+            return data.response;
+        } catch (error) {
+            console.error('Error generating code:', error);
+            throw error;
+        }
+    }
     const createModelBtn = document.getElementById('createModelBtn');
     const modelModal = document.getElementById('modelModal');
     const closeModal = document.getElementById('closeModal');
