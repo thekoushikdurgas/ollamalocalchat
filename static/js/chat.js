@@ -1,6 +1,28 @@
 document.addEventListener('DOMContentLoaded', function() {
     const chatForm = document.getElementById('chatForm');
     
+    // Fetch available models
+    async function fetchModels() {
+        try {
+            const response = await fetch('/models');
+            const models = await response.json();
+            const modelSelect = document.getElementById('modelSelect');
+            modelSelect.innerHTML = ''; // Clear existing options
+            
+            models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.name;
+                option.textContent = `${model.name} (${model.size})`;
+                modelSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error fetching models:', error);
+        }
+    }
+
+    // Fetch models on page load
+    fetchModels();
+    
     async function generateCode(prompt, suffix = '') {
         try {
             const response = await fetch('/generate-code', {

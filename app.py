@@ -214,6 +214,29 @@ async def get_messages():
     # For now, return an empty list since we're not storing messages
     return jsonify([])
 
+@app.route('/models', methods=['GET'])
+async def list_models():
+    try:
+        response = await ollama_client.list()
+        models = []
+        for model in response['models']:
+            model_info = {
+                'name': model['name'],
+                'size': f"{(model['size'] / 1024 / 1024):.2f} MB"
+            }
+            if 'details' in model:
+                model_info.update({
+                    'format': model['details'].get('format'),
+                    'family': model['details'].get('family'),
+                    'parameter_size': model['details'].get('parameter_size'),
+                    'quantization_level': model['details'].get('quantization_level')
+                })
+            models.append(model_info)
+        return jsonify(models)
+    except Exception as e:
+        logger.error(f"Error listing models: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.errorhandler(404)
 def not_found_error(error):
     return render_template('index.html'), 404
