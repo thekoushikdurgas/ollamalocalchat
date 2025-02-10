@@ -1,0 +1,12 @@
+
+asgiref>=3.8.1
+asyncpg>=0.30.0
+email-validator>=2.0.0
+flask>=3.1.0
+flask-sqlalchemy>=3.1.1
+gunicorn>=23.0.0
+hypercorn>=0.17.3
+ollama>=0.4.7
+psycopg2-binary>=2.9.10
+quart>=0.20.0
+sqlalchemy>=2.0.38

@@ -1,0 +1,10 @@
+pip install -r requirements.txt
+python main.py
+
+git init
+git add .
+git commit -m "5-2-2024"
+git remote add origin https://github.com/thekoushikdurgas/ollamalocalchat.git
+git branch -M replit-agent
+git push -u origin replit-agent -f
+git pull origin replit-agent

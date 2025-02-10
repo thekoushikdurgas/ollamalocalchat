@@ -249,7 +249,7 @@ async def list_models():
         models = []
         for model in response['models']:
             model_info = {
-                'name': model['name'],
+                'name': model['name'],  # Accessing name correctly
                 'size': f"{(model['size'] / 1024 / 1024):.2f} MB"
             }
             if 'details' in model:
