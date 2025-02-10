@@ -50,6 +50,11 @@ async def handle_ollama_error(error: Exception) -> tuple[dict, int]:
     if isinstance(error, ConnectionError):
         logger.error("Ollama connection error: Failed to connect to service")
         return {"error": "Failed to connect to Ollama. Please ensure Ollama is running."}, 503
+    elif "Event loop is closed" in str(error):
+        logger.error("Event loop error: Creating new event loop")
+        import asyncio
+        asyncio.set_event_loop(asyncio.new_event_loop())
+        return {"error": "Please retry your request"}, 503
     logger.error(f"Ollama error: {str(error)}")
     return {"error": str(error)}, 500
 
@@ -543,11 +548,21 @@ async def get_process_status():
 async def list_models():
     try:
         response = await ollama_client.list()
-        return jsonify([{
-            'name': model.model,
-            'size': f"{(model.size / 1024 / 1024):.2f} MB",
-            'details': model.details._asdict() if model.details else None
-        } for model in response.models])
+        models_info = []
+        for model in response.models:
+            model_info = {
+                'name': model.model,
+                'size': f"{(model.size / 1024 / 1024):.2f} MB",
+            }
+            if model.details:
+                model_info.update({
+                    'format': model.details.format,
+                    'family': model.details.family,
+                    'parameter_size': model.details.parameter_size,
+                    'quantization_level': model.details.quantization_level
+                })
+            models_info.append(model_info)
+        return jsonify(models_info)
     except Exception as e:
         return await handle_ollama_error(e)
 
