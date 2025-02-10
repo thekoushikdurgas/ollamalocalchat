@@ -73,6 +73,34 @@ async def generate_response():
         logger.error(f"Generate error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/multimodal-chat', methods=['POST'])
+async def multimodal_chat():
+    try:
+        data = request.json
+        message = data.get('message', '')
+        image_data = data.get('image', '')  # Base64 encoded image
+        model = data.get('model', 'llama2-vision')
+
+        if not message:
+            return jsonify({'error': 'Message is required'}), 400
+
+        messages = [{'role': 'user', 'content': message}]
+        if image_data:
+            messages[0]['images'] = [image_data]
+
+        try:
+            response = await ollama_client.chat(
+                model=model,
+                messages=messages
+            )
+            return jsonify({'response': response['message']['content']})
+        except Exception as e:
+            logger.error(f"Multimodal chat error: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+    except Exception as e:
+        logger.error(f"Request processing error: {str(e)}")
+        return jsonify({'error': 'Failed to process request'}), 500
+
 @app.route('/chat', methods=['POST'])
 async def chat():
     try:

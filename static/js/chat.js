@@ -1,5 +1,38 @@
 document.addEventListener('DOMContentLoaded', function() {
     const chatForm = document.getElementById('chatForm');
+    let currentImageData = null;
+
+    // Add image upload handler
+    const imageInput = document.createElement('input');
+    imageInput.type = 'file';
+    imageInput.accept = 'image/*';
+    imageInput.style.display = 'none';
+    imageInput.addEventListener('change', handleImageUpload);
+    document.body.appendChild(imageInput);
+
+    function handleImageUpload(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentImageData = e.target.result.split(',')[1]; // Get base64 data
+                const preview = document.getElementById('imagePreview');
+                if (preview) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    // Add image upload button to chat form
+    const uploadButton = document.createElement('button');
+    uploadButton.type = 'button';
+    uploadButton.className = 'btn btn-secondary';
+    uploadButton.innerHTML = '<i data-feather="image"></i>';
+    uploadButton.onclick = () => imageInput.click();
+    document.querySelector('.input-group').insertBefore(uploadButton, document.querySelector('.send-button'));
     
     // Fetch available models
     async function fetchModels() {
@@ -139,7 +172,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const loadingIndicator = addLoadingIndicator();
 
         try {
-            const endpoint = currentMode === 'generate' ? '/generate' : '/chat';
+            let endpoint = currentMode === 'generate' ? '/generate' : '/chat';
+            if (currentImageData) {
+                endpoint = '/multimodal-chat';
+            }
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
@@ -150,7 +186,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     prompt: message,  // For generate endpoint
                     mode: currentMode,
                     model: document.getElementById('modelSelect').value,
-                    stream: true
+                    image: currentImageData,
+                    stream: endpoint !== '/multimodal-chat'  // Disable streaming for multimodal
                 })
             });
 
