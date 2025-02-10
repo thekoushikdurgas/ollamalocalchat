@@ -41,19 +41,53 @@ async def chat():
 
         try:
             if mode == 'generate':
-                # Generate mode with improved error handling and streaming
                 try:
                     response = await ollama_client.generate(
                         'llama2',
                         prompt=message,
-                        stream=False  # Set to True if you want to implement streaming
+                        stream=False
                     )
                     bot_response = response['response']
                 except Exception as e:
                     logger.error(f"Generate mode error: {str(e)}")
                     raise
+            elif mode == 'structured':
+                # Handle structured output requests
+                try:
+                    # Detect the type of structured output needed
+                    if 'friends' in message.lower():
+                        schema = FriendList.model_json_schema()
+                        response = await ollama_client.chat(
+                            model='llama2',
+                            messages=session['messages'],
+                            format=schema,
+                            options={'temperature': 0}
+                        )
+                        # Validate response with Pydantic
+                        structured_response = FriendList.model_validate_json(response['message']['content'])
+                        bot_response = structured_response.model_dump_json()
+                    elif 'weather' in message.lower():
+                        schema = WeatherInfo.model_json_schema()
+                        response = await ollama_client.chat(
+                            model='llama2',
+                            messages=session['messages'],
+                            format=schema,
+                            options={'temperature': 0}
+                        )
+                        structured_response = WeatherInfo.model_validate_json(response['message']['content'])
+                        bot_response = structured_response.model_dump_json()
+                    else:
+                        # Default to regular chat if no structure detected
+                        response = await ollama_client.chat(
+                            model='llama2',
+                            messages=session['messages']
+                        )
+                        bot_response = response['message']['content']
+                except Exception as e:
+                    logger.error(f"Structured output error: {str(e)}")
+                    raise
             else:
-                # Chat mode with conversation history
+                # Regular chat mode
                 response = await ollama_client.chat(
                     model='llama2',
                     messages=session['messages']
