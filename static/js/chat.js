@@ -67,20 +67,37 @@ document.addEventListener('DOMContentLoaded', function() {
     async function fetchModels() {
         try {
             const response = await fetch('/models');
-            const models = await response.json();
+            const data = await response.json();
             const modelSelect = document.getElementById('modelSelect');
             modelSelect.innerHTML = ''; // Clear existing options
 
-            models.forEach(model => {
-                const option = document.createElement('option');
-                option.value = model.name;
-                option.textContent = `${model.name} (${model.size})`;
-                modelSelect.appendChild(option);
-            });
+            if (response.ok && !data.error) {
+                data.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.name;
+                    let modelText = model.name;
+                    if (model.size) modelText += ` (${model.size})`;
+                    if (model.family) modelText += ` - ${model.family}`;
+                    option.textContent = modelText;
+                    modelSelect.appendChild(option);
+                });
+            } else {
+                const errorOption = document.createElement('option');
+                errorOption.value = '';
+                errorOption.textContent = data.error || 'Error loading models';
+                errorOption.disabled = true;
+                modelSelect.appendChild(errorOption);
+                console.error('Model fetch error:', data.error);
+            }
         } catch (error) {
             console.error('Error fetching models:', error);
+            const modelSelect = document.getElementById('modelSelect');
+            modelSelect.innerHTML = '<option disabled>Failed to load models</option>';
         }
     }
+
+    // Refresh models list periodically
+    setInterval(fetchModels, 30000); // Every 30 seconds
 
     // Fetch models on page load
     fetchModels();

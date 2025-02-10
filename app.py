@@ -511,23 +511,27 @@ async def list_models():
     try:
         response = await ollama_client.list()
         models = []
-        for model in response['models']:
+        for model in response.models:
             model_info = {
-                'name': model['name'],  # Accessing name correctly
-                'size': f"{(model['size'] / 1024 / 1024):.2f} MB"
+                'name': model.model,
+                'size': f"{(model.size / 1024 / 1024):.2f} MB"
             }
-            if 'details' in model:
+            if model.details:
                 model_info.update({
-                    'format': model['details'].get('format'),
-                    'family': model['details'].get('family'),
-                    'parameter_size': model['details'].get('parameter_size'),
-                    'quantization_level': model['details'].get('quantization_level')
+                    'format': model.details.format,
+                    'family': model.details.family,
+                    'parameter_size': model.details.parameter_size,
+                    'quantization_level': model.details.quantization_level
                 })
             models.append(model_info)
         return jsonify(models)
+    except ConnectionError:
+        error_msg = "Failed to connect to Ollama. Please ensure Ollama is running."
+        logger.error(error_msg)
+        return jsonify({'error': error_msg, 'models': []}), 503
     except Exception as e:
         logger.error(f"Error listing models: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': str(e), 'models': []}), 500
 
 @app.errorhandler(404)
 def not_found_error(error):
