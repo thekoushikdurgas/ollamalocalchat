@@ -25,9 +25,14 @@ async def chat():
         data = request.json
         message = data.get('message', '')
         mode = data.get('mode', 'chat')
+        model = data.get('model', 'llama2')  # Default to llama2
 
         if not message:
             return jsonify({'error': 'Message is required'}), 400
+
+        # Initialize messages list for the session if it doesn't exist
+        if 'messages' not in session:
+            session['messages'] = []
 
         # Initialize messages list for the session if it doesn't exist
         if 'messages' not in session:

@@ -54,7 +54,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({ 
                     message: message,
-                    mode: currentMode
+                    mode: currentMode,
+                    model: document.getElementById('modelSelect').value
                 })
             });
 

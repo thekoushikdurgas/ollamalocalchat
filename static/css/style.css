@@ -137,7 +137,23 @@ body {
 .mode-toggle {
     display: flex;
     gap: 8px;
-    justify-content: center;
+    padding: 8px;
+    align-items: center;
+}
+
+.model-select {
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: white;
+    font-size: 14px;
+    margin-right: 8px;
+}
+
+.model-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(98, 76, 245, 0.1);
 }
 
 .mode-button {
