@@ -13,6 +13,27 @@ class Message(Base):
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+# Structured output models
+class FriendInfo(BaseModel):
+    name: str
+    age: int
+    is_available: bool
+
+class FriendList(BaseModel):
+    friends: list[FriendInfo]
+
+# Add more structured output models as needed
+class WeatherInfo(BaseModel):
+    temperature: float
+    conditions: str
+    location: str
+
+class RecipeInfo(BaseModel):
+    name: str
+    ingredients: list[str]
+    steps: list[str]
+
+
     def to_dict(self):
         return {
             'id': self.id,
