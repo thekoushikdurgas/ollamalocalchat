@@ -360,6 +360,27 @@ async def generate_embedding():
         logger.error(f"Embedding error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/process-status', methods=['GET'])
+async def get_process_status():
+    try:
+        response = await ollama_client.ps()
+        models_status = []
+        for model in response.models:
+            model_info = {
+                'model': model.model,
+                'digest': model.digest,
+                'size': f"{(model.size / 1024 / 1024):.2f} MB",
+                'size_vram': f"{(model.size_vram / 1024 / 1024):.2f} MB",
+                'details': model.details
+            }
+            if model.expires_at:
+                model_info['expires_at'] = model.expires_at
+            models_status.append(model_info)
+        return jsonify(models_status)
+    except Exception as e:
+        logger.error(f"Error getting process status: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/models', methods=['GET'])
 async def list_models():
     try:

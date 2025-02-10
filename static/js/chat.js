@@ -414,4 +414,26 @@ document.addEventListener('DOMContentLoaded', function() {
     function scrollToBottom() {
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
+
+    async function checkProcessStatus() {
+        try {
+            const response = await fetch('/process-status');
+            const data = await response.json();
+            if (response.ok) {
+                console.log('Process Status:', data);
+                // Update UI with model status -  replace with your actual UI element
+                document.getElementById('modelStatus').textContent = JSON.stringify(data, null, 2);
+                return data;
+            } else {
+                console.error('Error:', data.error);
+            }
+        } catch (error) {
+            console.error('Failed to check process status:', error);
+        }
+    }
+
+
+    //Periodically check model status
+    setInterval(checkProcessStatus, 5000); // Check every 5 seconds
+
 });
