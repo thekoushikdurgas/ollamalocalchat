@@ -341,6 +341,25 @@ async def get_messages():
     # For now, return an empty list since we're not storing messages
     return jsonify([])
 
+@app.route('/embed', methods=['POST'])
+async def generate_embedding():
+    try:
+        data = request.json
+        text = data.get('text', '')
+        model = data.get('model', 'llama2')
+
+        if not text:
+            return jsonify({'error': 'Text is required'}), 400
+
+        response = await ollama_client.embeddings(
+            model=model,
+            prompt=text
+        )
+        return jsonify({'embeddings': response['embeddings']})
+    except Exception as e:
+        logger.error(f"Embedding error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/models', methods=['GET'])
 async def list_models():
     try:
