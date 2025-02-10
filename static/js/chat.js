@@ -490,6 +490,53 @@ createModelSubmit.addEventListener('click', async () => {
 
 
     //Periodically check model status
+    // Add comic analysis button
+    const comicButton = document.createElement('button');
+    comicButton.type = 'button';
+    comicButton.className = 'btn btn-secondary';
+    comicButton.innerHTML = '<i data-feather="smile"></i>';
+    comicButton.title = 'Analyze XKCD Comic';
+    comicButton.onclick = async () => {
+        const comicNum = prompt('Enter XKCD comic number (leave empty for random):');
+        
+        // Add loading message
+        const loadingMessage = addMessage('Analyzing comic...', 'bot');
+        
+        try {
+            const response = await fetch('/analyze-comic', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ comic_num: comicNum })
+            });
+            
+            const data = await response.json();
+            if (response.ok) {
+                loadingMessage.remove();
+                const comicMessage = document.createElement('div');
+                comicMessage.className = 'bot-message comic-analysis';
+                comicMessage.innerHTML = `
+                    <h3>XKCD #${data.comic_num}: ${data.title}</h3>
+                    <img src="${data.image_url}" alt="${data.alt}" style="max-width: 100%; margin: 10px 0;">
+                    <p><strong>Alt text:</strong> ${data.alt}</p>
+                    <p><strong>Link:</strong> <a href="${data.link}" target="_blank">${data.link}</a></p>
+                    <p><strong>AI Explanation:</strong></p>
+                    <p>${data.explanation}</p>
+                `;
+                chatMessages.appendChild(comicMessage);
+                scrollToBottom();
+            } else {
+                loadingMessage.textContent = 'Error: ' + (data.error || 'Failed to analyze comic');
+            }
+        } catch (error) {
+            loadingMessage.textContent = 'Error: ' + error.message;
+        }
+    };
+    
+    document.querySelector('.input-group').insertBefore(comicButton, document.querySelector('.send-button'));
+    feather.replace();
+
     setInterval(checkProcessStatus, 5000); // Check every 5 seconds
 
 });

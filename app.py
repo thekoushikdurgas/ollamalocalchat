@@ -102,6 +102,49 @@ async def generate_response():
         logger.error(f"Generate error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/analyze-comic', methods=['POST'])
+async def analyze_comic():
+    try:
+        import random
+        import httpx
+
+        data = request.json
+        comic_num = data.get('comic_num')
+        
+        async with httpx.AsyncClient() as client:
+            latest = await client.get('https://xkcd.com/info.0.json')
+            latest.raise_for_status()
+            
+            if not comic_num:
+                comic_num = random.randint(1, latest.json().get('num'))
+                
+            comic = await client.get(f'https://xkcd.com/{comic_num}/info.0.json')
+            comic.raise_for_status()
+            comic_data = comic.json()
+            
+            raw = await client.get(comic_data.get('img'))
+            raw.raise_for_status()
+            
+            response = await ollama_client.generate(
+                model='llava',
+                prompt='explain this comic:',
+                images=[raw.content],
+                stream=False
+            )
+            
+            return jsonify({
+                'comic_num': comic_data.get('num'),
+                'title': comic_data.get('title'),
+                'alt': comic_data.get('alt'),
+                'link': f'https://xkcd.com/{comic_num}',
+                'image_url': comic_data.get('img'),
+                'explanation': response['response']
+            })
+            
+    except Exception as e:
+        logger.error(f"Comic analysis error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/multimodal-chat', methods=['POST'])
 async def multimodal_chat():
     try:
