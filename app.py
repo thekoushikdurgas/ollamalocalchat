@@ -299,6 +299,38 @@ async def create_model():
         logger.error(f"Model creation error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/create-chat', methods=['POST'])
+async def create_chat():
+    try:
+        data = request.json
+        name = data.get('name')
+        base_model = data.get('base_model', 'llama2')
+        system_prompt = data.get('system_prompt', '')
+
+        if not name:
+            return jsonify({'error': 'Chat name is required'}), 400
+
+        try:
+            response = await ollama_client.create(
+                model=f'chat-{name.lower().replace(" ", "-")}',
+                from_=base_model,
+                system=system_prompt,
+                stream=False
+            )
+            
+            # Clear session messages for new chat
+            session['messages'] = []
+            session['current_chat'] = name
+            
+            return jsonify({'status': 'success', 'name': name})
+        except Exception as e:
+            logger.error(f"Chat creation error: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+    except Exception as e:
+        logger.error(f"Request processing error: {str(e)}")
+        return jsonify({'error': 'Failed to process request'}), 500
+
 @app.route('/clear', methods=['POST'])
 async def clear_history():
     session['messages'] = []

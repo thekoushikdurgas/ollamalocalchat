@@ -79,8 +79,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const createModelBtn = document.getElementById('createModelBtn');
     const modelModal = document.getElementById('modelModal');
     const closeModal = document.getElementById('closeModal');
-    const createModelSubmit = document.getElementById('createModelSubmit');
-    const modelSelect = document.getElementById('modelSelect');
+    const newChatBtn = document.querySelector('.new-chat-btn');
+    const chatModal = document.getElementById('chatModal');
+    const closeChatModal = document.getElementById('closeChatModal');
+    const createChatBtn = document.getElementById('createChatBtn');
 
     createModelBtn.addEventListener('click', () => {
         modelModal.style.display = 'block';
@@ -89,6 +91,9 @@ document.addEventListener('DOMContentLoaded', function() {
     closeModal.addEventListener('click', () => {
         modelModal.style.display = 'none';
     });
+
+    const createModelSubmit = document.getElementById('createModelSubmit');
+    const modelSelect = document.getElementById('modelSelect');
 
     createModelSubmit.addEventListener('click', async () => {
         const modelName = document.getElementById('modelName').value;
@@ -123,6 +128,62 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Error:', error);
             alert('Failed to create model');
+        }
+    });
+
+    // New chat modal handlers
+    newChatBtn.addEventListener('click', () => {
+        chatModal.style.display = 'block';
+    });
+
+    closeChatModal.addEventListener('click', () => {
+        chatModal.style.display = 'none';
+    });
+
+    createChatBtn.addEventListener('click', async () => {
+        const chatName = document.getElementById('chatName').value;
+        const baseModel = document.getElementById('chatBaseModel').value;
+        const systemPrompt = document.getElementById('chatSystemPrompt').value;
+
+        try {
+            const response = await fetch('/create-chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: chatName,
+                    base_model: baseModel,
+                    system_prompt: systemPrompt
+                })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                // Add new chat to sidebar
+                const conversationsList = document.querySelector('.conversations-list');
+                const newChat = document.createElement('a');
+                newChat.href = '#';
+                newChat.className = 'nav-item';
+                newChat.innerHTML = `
+                    <i data-feather="message-square"></i>
+                    ${chatName}
+                `;
+                conversationsList.insertBefore(newChat, conversationsList.firstChild);
+                feather.replace();
+
+                chatModal.style.display = 'none';
+                // Clear chat messages
+                document.getElementById('chatMessages').innerHTML = '';
+                // Clear form
+                document.getElementById('chatName').value = '';
+                document.getElementById('chatSystemPrompt').value = '';
+            } else {
+                alert('Error creating chat: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to create chat');
         }
     });
     const messageInput = document.getElementById('messageInput');
