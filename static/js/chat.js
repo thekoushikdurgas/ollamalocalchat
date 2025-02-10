@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
             loadingIndicator.remove();
 
             if (response.ok) {
-                addMessage(data.response, 'bot');
+                addMessage(data.response, 'bot', true);
             } else {
                 addMessage('Sorry, I encountered an error. Please try again.', 'bot');
             }
@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             messages.forEach(message => {
-                addMessage(message.content, message.role);
+                addMessage(message.content, message.role, true);
             });
 
             scrollToBottom();
@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function addMessage(content, type) {
+    function addMessage(content, type, showActions = false) {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message', `${type}-message`);
 
@@ -86,7 +86,70 @@ document.addEventListener('DOMContentLoaded', function() {
         textContent.textContent = content;
         messageDiv.appendChild(textContent);
 
+        // Add action buttons for bot messages
+        if (type === 'bot' && showActions) {
+            const actionsDiv = document.createElement('div');
+            actionsDiv.classList.add('message-actions');
+
+            // Regenerate button
+            const regenerateBtn = document.createElement('button');
+            regenerateBtn.classList.add('action-button');
+            regenerateBtn.innerHTML = '<i data-feather="refresh-cw"></i> Regenerate';
+            regenerateBtn.addEventListener('click', async () => {
+                const lastUserMessage = chatMessages.querySelector('.user-message:last-of-type');
+                if (lastUserMessage) {
+                    // Remove the current bot message
+                    messageDiv.remove();
+
+                    // Show loading indicator
+                    const loadingIndicator = addLoadingIndicator();
+
+                    try {
+                        const response = await fetch('/chat', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ message: lastUserMessage.querySelector('p').textContent })
+                        });
+
+                        const data = await response.json();
+                        loadingIndicator.remove();
+
+                        if (response.ok) {
+                            addMessage(data.response, 'bot', true);
+                        } else {
+                            addMessage('Sorry, I encountered an error. Please try again.', 'bot');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        loadingIndicator.remove();
+                        addMessage('Sorry, I encountered an error. Please try again.', 'bot');
+                    }
+                }
+            });
+            actionsDiv.appendChild(regenerateBtn);
+
+            // Copy button
+            const copyBtn = document.createElement('button');
+            copyBtn.classList.add('action-button');
+            copyBtn.innerHTML = '<i data-feather="copy"></i> Copy';
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(content);
+                copyBtn.innerHTML = '<i data-feather="check"></i> Copied';
+                feather.replace();
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<i data-feather="copy"></i> Copy';
+                    feather.replace();
+                }, 2000);
+            });
+            actionsDiv.appendChild(copyBtn);
+
+            messageDiv.appendChild(actionsDiv);
+        }
+
         chatMessages.appendChild(messageDiv);
+        feather.replace();
         scrollToBottom();
     }
 
