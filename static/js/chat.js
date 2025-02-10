@@ -199,6 +199,12 @@ createModelSubmit.addEventListener('click', async () => {
         const modelName = document.getElementById('modelName').value;
         const baseModel = document.getElementById('baseModel').value;
         const systemPrompt = document.getElementById('systemPrompt').value;
+        const streamCreation = document.getElementById('streamCreation').checked;
+        
+        if (!modelName || !baseModel) {
+            alert('Please provide both model name and base model');
+            return;
+        }
 
         // Get or create progress area
         let progressArea = document.getElementById('pullProgress');
