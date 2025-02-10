@@ -5,6 +5,7 @@ from hypercorn.asyncio import serve
 from app import app
 
 async def main():
+    """Main entry point for the application"""
     config = Config()
     config.bind = ["0.0.0.0:5000"]
     config.use_reloader = True
