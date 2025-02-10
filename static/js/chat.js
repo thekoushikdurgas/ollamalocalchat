@@ -208,10 +208,14 @@ createModelSubmit.addEventListener('click', async () => {
         // Start progress tracking
         const progressTracker = trackPullProgress();
 
-        const progressArea = document.createElement('div');
-        progressArea.id = 'modelProgress';
-        progressArea.className = 'model-progress';
-        document.querySelector('.modal-content').appendChild(progressArea);
+        // Get existing progress area or create new one
+        let progressArea = document.getElementById('modelProgress');
+        if (!progressArea) {
+            progressArea = document.createElement('div');
+            progressArea.id = 'modelProgress';
+            progressArea.className = 'model-progress';
+            document.querySelector('.modal-content').appendChild(progressArea);
+        }
 
         try {
             progressArea.textContent = 'Starting model creation...';
