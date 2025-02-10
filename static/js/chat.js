@@ -604,6 +604,33 @@ createModelSubmit.addEventListener('click', async () => {
 
 });
 
+async function getEmbedding(text, model = 'llama2') {
+    try {
+        const response = await fetch('/embed', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                text: text,
+                model: model
+            })
+        });
+        const data = await response.json();
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        return data;
+    } catch (error) {
+        console.error('Embedding error:', error);
+        throw error;
+    }
+}
+
+async function init() {
+    //  Add initialization logic here if needed.  This function is now available.
+}
+
 function appendMessage(message, isUser = false) {
     const messageDiv = document.createElement('div');
     messageDiv.className = isUser ? 'user-message' : 'bot-message';

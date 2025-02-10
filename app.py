@@ -492,15 +492,34 @@ async def generate_embedding():
         data = request.json
         text = data.get('text', '')
         model = data.get('model', 'llama2')
+        batch = data.get('batch', False)
+        texts = data.get('texts', [])
 
-        if not text:
-            return jsonify({'error': 'Text is required'}), 400
-
-        response = await ollama_client.embeddings(
-            model=model,
-            prompt=text
-        )
-        return jsonify({'embeddings': response['embeddings']})
+        if batch:
+            if not texts:
+                return jsonify({'error': 'Texts array is required for batch embedding'}), 400
+            responses = []
+            for t in texts:
+                response = await ollama_client.embeddings(
+                    model=model,
+                    prompt=t
+                )
+                responses.append(response['embeddings'])
+            return jsonify({'embeddings': responses})
+        else:
+            if not text:
+                return jsonify({'error': 'Text is required'}), 400
+            response = await ollama_client.embeddings(
+                model=model,
+                prompt=text
+            )
+            return jsonify({
+                'embeddings': response['embeddings'],
+                'metadata': {
+                    'model': model,
+                    'dimensions': len(response['embeddings'])
+                }
+            })
     except Exception as e:
         logger.error(f"Embedding error: {str(e)}")
         return jsonify({'error': str(e)}), 500
