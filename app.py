@@ -41,9 +41,17 @@ async def chat():
 
         try:
             if mode == 'generate':
-                # Generate mode for direct responses
-                response = await ollama_client.generate('llama2', prompt=message)
-                bot_response = response['response']
+                # Generate mode with improved error handling and streaming
+                try:
+                    response = await ollama_client.generate(
+                        'llama2',
+                        prompt=message,
+                        stream=False  # Set to True if you want to implement streaming
+                    )
+                    bot_response = response['response']
+                except Exception as e:
+                    logger.error(f"Generate mode error: {str(e)}")
+                    raise
             else:
                 # Chat mode with conversation history
                 response = await ollama_client.chat(
