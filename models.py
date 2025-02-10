@@ -22,6 +22,21 @@ class FriendInfo(BaseModel):
 class FriendList(BaseModel):
     friends: list[FriendInfo]
 
+# Image analysis models
+class ImageObject(BaseModel):
+    name: str
+    confidence: float
+    attributes: str
+
+class ImageAnalysis(BaseModel):
+    summary: str
+    objects: list[ImageObject]
+    scene: str
+    colors: list[str]
+    time_of_day: Literal['Morning', 'Afternoon', 'Evening', 'Night']
+    setting: Literal['Indoor', 'Outdoor', 'Unknown']
+    text_content: str | None = None
+
 # Add more structured output models as needed
 class WeatherInfo(BaseModel):
     temperature: float

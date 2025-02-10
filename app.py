@@ -29,6 +29,10 @@ class RecipeInfo(BaseModel):
     ingredients: list[str]
     instructions: list[str]
 
+# Placeholder for ImageAnalysis model.  Replace with your actual model.
+class ImageAnalysis(BaseModel):
+    analysis: str
+
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -142,10 +146,6 @@ async def chat():
         if 'messages' not in session:
             session['messages'] = []
 
-        # Initialize messages list for the session if it doesn't exist
-        if 'messages' not in session:
-            session['messages'] = []
-
         # Add user message to history
         session['messages'].append({
             'role': 'user',
@@ -170,7 +170,8 @@ async def chat():
                     schema_map = {
                         'friends': FriendList,
                         'weather': WeatherInfo,
-                        'recipe': RecipeInfo
+                        'recipe': RecipeInfo,
+                        'image': ImageAnalysis
                     }
 
                     # Detect which schema to use based on message content
