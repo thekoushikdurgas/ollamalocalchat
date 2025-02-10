@@ -1,5 +1,54 @@
 document.addEventListener('DOMContentLoaded', function() {
     const chatForm = document.getElementById('chatForm');
+    const createModelBtn = document.getElementById('createModelBtn');
+    const modelModal = document.getElementById('modelModal');
+    const closeModal = document.getElementById('closeModal');
+    const createModelSubmit = document.getElementById('createModelSubmit');
+    const modelSelect = document.getElementById('modelSelect');
+
+    createModelBtn.addEventListener('click', () => {
+        modelModal.style.display = 'block';
+    });
+
+    closeModal.addEventListener('click', () => {
+        modelModal.style.display = 'none';
+    });
+
+    createModelSubmit.addEventListener('click', async () => {
+        const modelName = document.getElementById('modelName').value;
+        const baseModel = document.getElementById('baseModel').value;
+        const systemPrompt = document.getElementById('systemPrompt').value;
+
+        try {
+            const response = await fetch('/create-model', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model_name: modelName,
+                    base_model: baseModel,
+                    system_prompt: systemPrompt
+                })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                // Add new model to select options
+                const option = document.createElement('option');
+                option.value = modelName;
+                option.textContent = modelName;
+                modelSelect.appendChild(option);
+                modelSelect.value = modelName;
+                modelModal.style.display = 'none';
+            } else {
+                alert('Error creating model: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to create model');
+        }
+    });
     const messageInput = document.getElementById('messageInput');
     const chatMessages = document.getElementById('chatMessages');
     const modeButtons = document.querySelectorAll('.mode-button');

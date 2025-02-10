@@ -118,6 +118,30 @@ async def chat():
         logger.error(f"Request processing error: {str(e)}")
         return jsonify({'error': 'Failed to process request'}), 500
 
+@app.route('/create-model', methods=['POST'])
+async def create_model():
+    try:
+        data = request.json
+        model_name = data.get('model_name')
+        base_model = data.get('base_model', 'llama2')
+        system_prompt = data.get('system_prompt', '')
+
+        if not model_name:
+            return jsonify({'error': 'Model name is required'}), 400
+
+        client = AsyncClient()
+        response = await client.create(
+            model=model_name,
+            from_=base_model,
+            system=system_prompt,
+            stream=False
+        )
+        
+        return jsonify({'status': response['status']})
+    except Exception as e:
+        logger.error(f"Model creation error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/clear', methods=['POST'])
 async def clear_history():
     session['messages'] = []

@@ -55,6 +55,27 @@
                     <option value="mistral">Mistral</option>
                     <option value="codellama">CodeLlama</option>
                 </select>
+                <button id="createModelBtn" class="action-button">
+                    <i data-feather="plus"></i>
+                    Create Model
+                </button>
+                
+                <!-- Model Creation Modal -->
+                <div id="modelModal" class="modal">
+                    <div class="modal-content">
+                        <h2>Create Custom Model</h2>
+                        <input type="text" id="modelName" placeholder="Model name" class="modal-input">
+                        <select id="baseModel" class="modal-input">
+                            <option value="llama2">Llama 2</option>
+                            <option value="llama3.2">Llama 3.2</option>
+                        </select>
+                        <textarea id="systemPrompt" placeholder="System prompt" class="modal-input"></textarea>
+                        <div class="modal-buttons">
+                            <button id="createModelSubmit" class="action-button">Create</button>
+                            <button id="closeModal" class="action-button">Cancel</button>
+                        </div>
+                    </div>
+                </div>
                 <button class="mode-button active" data-mode="chat">
                     <i data-feather="message-circle"></i>
                     Chat
