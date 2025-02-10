@@ -69,7 +69,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch('/models');
             const data = await response.json();
             const modelSelect = document.getElementById('modelSelect');
+            const chatBaseModel = document.getElementById('chatBaseModel');
             modelSelect.innerHTML = ''; // Clear existing options
+            chatBaseModel.innerHTML = ''; // Clear existing options
 
             if (response.ok && !data.error) {
                 data.forEach(model => {
@@ -79,20 +81,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (model.size) modelText += ` (${model.size})`;
                     if (model.family) modelText += ` - ${model.family}`;
                     option.textContent = modelText;
-                    modelSelect.appendChild(option);
+                    
+                    // Add to main model select
+                    modelSelect.appendChild(option.cloneNode(true));
+                    
+                    // Add to chat base model select
+                    chatBaseModel.appendChild(option.cloneNode(true));
                 });
             } else {
                 const errorOption = document.createElement('option');
                 errorOption.value = '';
                 errorOption.textContent = data.error || 'Error loading models';
                 errorOption.disabled = true;
-                modelSelect.appendChild(errorOption);
+                modelSelect.appendChild(errorOption.cloneNode(true));
+                chatBaseModel.appendChild(errorOption.cloneNode(true));
                 console.error('Model fetch error:', data.error);
             }
         } catch (error) {
             console.error('Error fetching models:', error);
-            const modelSelect = document.getElementById('modelSelect');
-            modelSelect.innerHTML = '<option disabled>Failed to load models</option>';
+            const errorHtml = '<option disabled>Failed to load models</option>';
+            document.getElementById('modelSelect').innerHTML = errorHtml;
+            document.getElementById('chatBaseModel').innerHTML = errorHtml;
         }
     }
 
@@ -199,7 +208,13 @@ createModelSubmit.addEventListener('click', async () => {
         // Start progress tracking
         const progressTracker = trackPullProgress();
 
+        const progressArea = document.createElement('div');
+        progressArea.id = 'modelProgress';
+        progressArea.className = 'model-progress';
+        document.querySelector('.modal-content').appendChild(progressArea);
+
         try {
+            progressArea.textContent = 'Starting model creation...';
             const response = await fetch('/create-model', {
                 method: 'POST',
                 headers: {
@@ -211,6 +226,18 @@ createModelSubmit.addEventListener('click', async () => {
                     system_prompt: systemPrompt
                 })
             });
+
+            // Poll for progress updates
+            const progressInterval = setInterval(async () => {
+                const progressResponse = await fetch('/pull-progress');
+                const progress = await progressResponse.json();
+                if (progress.status) {
+                    progressArea.textContent = progress.status;
+                }
+                if (progress.progress) {
+                    progressArea.textContent += ` (${progress.progress})`;
+                }
+            }, 500);
 
             const data = await response.json();
             if (response.ok) {

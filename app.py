@@ -13,7 +13,7 @@ from pydantic import BaseModel
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Model Definitions
+# Pydantic Models
 class BaseResponse(BaseModel):
     error: Optional[str] = None
 
@@ -41,22 +41,136 @@ class ImageAnalysis(BaseModel):
 # Flask App Setup
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "chatbot_secret_key")
-
-# Ollama Client Setup
 ollama_client = AsyncClient()
 
-# Error Handler
+# Error Handlers
 async def handle_ollama_error(error: Exception) -> tuple[dict, int]:
     if isinstance(error, ConnectionError):
         logger.error("Ollama connection error: Failed to connect to service")
         return {"error": "Failed to connect to Ollama. Please ensure Ollama is running."}, 503
+    elif "Event loop is closed" in str(error):
+        logger.error("Event loop error: Creating new event loop")
+        import asyncio
+        asyncio.set_event_loop(asyncio.new_event_loop())
+        return {"error": "Please retry your request"}, 503
     logger.error(f"Ollama error: {str(error)}")
     return {"error": str(error)}, 500
+
+# Chat Mode Handlers
+async def handle_chat_mode(mode: str, model: str, message: str, stream: bool) -> dict | Response:
+    if mode == 'generate':
+        return await handle_generate_mode(model, message)
+    elif mode == 'tools':
+        return await handle_tools_mode(model, message)
+    elif mode == 'structured':
+        return await handle_structured_mode(model, message)
+    else:
+        return await handle_regular_chat(model, message, stream)
+
+async def handle_generate_mode(model: str, message: str) -> dict:
+    response = await ollama_client.generate(model, prompt=message, stream=False)
+    return {'response': response['response']}
+
+async def handle_tools_mode(model: str, message: str) -> dict:
+    from tools import TOOL_DEFINITIONS, AVAILABLE_FUNCTIONS
+    response = await ollama_client.chat(
+        model=model,
+        messages=session['messages'],
+        tools=TOOL_DEFINITIONS,
+        options={'temperature': 0}
+    )
+
+    if response.message.tool_calls:
+        outputs = await process_tool_calls(response.message.tool_calls)
+        final_response = await ollama_client.chat(model=model, messages=session['messages'])
+        return {'response': final_response.message.content}
+    return {'response': response.message.content}
+
+async def process_tool_calls(tool_calls):
+    outputs = []
+    for tool in tool_calls:
+        if function_to_call := AVAILABLE_FUNCTIONS.get(tool.function.name):
+            output = function_to_call(**tool.function.arguments)
+            outputs.append(output)
+            session['messages'].append({
+                'role': 'tool',
+                'content': str(output),
+                'name': tool.function.name
+            })
+    return outputs
+
+async def handle_structured_mode(model: str, message: str) -> dict:
+    schema_model = detect_schema(message)
+    if schema_model:
+        schema = schema_model.model_json_schema()
+        response = await ollama_client.chat(
+            model=model,
+            messages=session['messages'],
+            format=schema,
+            options={'temperature': 0}
+        )
+        structured_response = schema_model.model_validate_json(response['message']['content'])
+        return {'response': structured_response.model_dump_json()}
+    return await handle_regular_chat(model, message, False)
+
+async def handle_regular_chat(model: str, message: str, stream: bool) -> dict | Response:
+    if stream:
+        return Response(generate_stream(message, model), mimetype='text/event-stream')
+
+    response = await ollama_client.chat(model=model, messages=session['messages'])
+    return {'response': response['message']['content']}
+
+def detect_schema(message: str) -> Optional[BaseModel]:
+    schema_map = {
+        'friends': FriendList,
+        'weather': WeatherInfo,
+        'recipe': RecipeInfo,
+        'image': ImageAnalysis
+    }
+    return next((model for key, model in schema_map.items() 
+                 if key in message.lower()), None)
 
 # Routes
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/chat', methods=['POST'])
+async def chat():
+    try:
+        data = request.json
+        message = data.get('message')
+        model = data.get('model', 'llama2')
+        mode = data.get('mode', 'chat')
+        stream = data.get('stream', True)
+
+        if not message:
+            return jsonify({"error": "Message is required"}), 400
+
+        if 'messages' not in session:
+            session['messages'] = []
+
+        session['messages'].append({
+            'role': 'user',
+            'content': message
+        })
+
+        response = await handle_chat_mode(mode, model, message, stream)
+
+        if isinstance(response, Response):
+            return response
+
+        session['messages'].append({
+            'role': 'assistant',
+            'content': response['response']
+        })
+
+        return jsonify({
+            'response': response['response'],
+            'history': session['messages']
+        })
+    except Exception as e:
+        return await handle_ollama_error(e)
 
 @app.route('/generate-code', methods=['POST'])
 async def generate_code():
@@ -124,178 +238,6 @@ async def generate_stream(prompt: str, model: str, options: dict) -> AsyncGenera
     ):
         yield f"data: {json.dumps({'response': part['response']})}\n\n"
 
-@app.route('/chat', methods=['POST'])
-async def chat():
-    try:
-        data = request.json
-        message = data.get('message')
-        model = data.get('model', 'llama2')
-        mode = data.get('mode', 'chat')
-        stream = data.get('stream', True)
-
-        if not message:
-            return jsonify({"error": "Message is required"}), 400
-
-        if 'messages' not in session:
-            session['messages'] = []
-
-        session['messages'].append({
-            'role': 'user',
-            'content': message
-        })
-
-        response = await handle_chat_mode(mode, model, message, stream)
-
-        if isinstance(response, Response):
-            return response
-
-        session['messages'].append({
-            'role': 'assistant',
-            'content': response['response']
-        })
-
-        return jsonify({
-            'response': response['response'],
-            'history': session['messages']
-        })
-    except Exception as e:
-        return await handle_ollama_error(e)
-
-async def handle_chat_mode(mode: str, model: str, message: str, stream: bool) -> dict | Response:
-    if mode == 'generate':
-        try:
-            response = await ollama_client.generate(
-                'llama2',
-                prompt=message,
-                stream=False
-            )
-            return {'response': response['response']}
-        except Exception as e:
-            logger.error(f"Generate mode error: {str(e)}")
-            raise
-    elif mode == 'tools':
-        try:
-            from tools import TOOL_DEFINITIONS, AVAILABLE_FUNCTIONS
-            response = await ollama_client.chat(
-                model=model,
-                messages=session['messages'],
-                tools=TOOL_DEFINITIONS,
-                options={'temperature': 0}
-            )
-
-            if response.message.tool_calls:
-                outputs = []
-                for tool in response.message.tool_calls:
-                    if function_to_call := AVAILABLE_FUNCTIONS.get(tool.function.name):
-                        output = function_to_call(**tool.function.arguments)
-                        outputs.append(output)
-                        session['messages'].append({
-                            'role': 'tool',
-                            'content': str(output),
-                            'name': tool.function.name
-                        })
-
-                # Get final response with tool outputs
-                final_response = await ollama_client.chat(
-                    model=model,
-                    messages=session['messages']
-                )
-                return {'response': final_response.message.content}
-            else:
-                return {'response': response.message.content}
-        except Exception as e:
-            logger.error(f"Tools mode error: {str(e)}")
-            raise
-
-    elif mode == 'structured':
-        try:
-            # Map keywords to schema models
-            schema_map = {
-                'friends': FriendList,
-                'weather': WeatherInfo,
-                'recipe': RecipeInfo,
-                'image': ImageAnalysis
-            }
-
-            # Detect which schema to use based on message content
-            schema_model = None
-            for key, model in schema_map.items():
-                if key in message.lower():
-                    schema_model = model
-                    break
-
-            if schema_model:
-                # Get schema and format response
-                schema = schema_model.model_json_schema()
-                response = await ollama_client.chat(
-                    model=model,
-                    messages=session['messages'],
-                    format=schema,
-                    options={
-                        'temperature': 0,
-                        'top_p': 0.9,
-                        'num_predict': 128
-                    }
-                )
-                # Validate and format response
-                structured_response = schema_model.model_validate_json(response['message']['content'])
-                return {'response': structured_response.model_dump_json()}
-            else:
-                # Default to regular chat if no structure detected
-                response = await ollama_client.chat(
-                    model=model,
-                    messages=session['messages']
-                )
-                return {'response': response['message']['content']}
-        except Exception as e:
-            logger.error(f"Structured output error: {str(e)}")
-            raise
-    else:
-        # Regular chat mode with streaming
-        if stream:
-            async def generate_stream():
-                async for part in ollama_client.generate(model=model, prompt=message, stream=True):
-                    yield f"data: {json.dumps({'response': part['response']})}\n\n"
-            return Response(generate_stream(), mimetype='text/event-stream')
-        else:
-            format_schema = None
-            structured_data = None
-
-            # Detect keywords for structured output
-            message_lower = message.lower()
-            if 'friends' in message_lower:
-                format_schema = FriendList.model_json_schema()
-            elif 'weather' in message_lower:
-                format_schema = WeatherInfo.model_json_schema()
-            elif 'recipe' in message_lower:
-                format_schema = RecipeInfo.model_json_schema()
-
-            if format_schema:
-                response = await ollama_client.chat(
-                    model=model,
-                    messages=session['messages'],
-                    format=format_schema,
-                    options={'temperature': 0}
-                )
-                try:
-                    if 'friends' in message_lower:
-                        structured_data = FriendList.model_validate_json(response['message']['content'])
-                    elif 'weather' in message_lower:
-                        structured_data = WeatherInfo.model_validate_json(response['message']['content'])
-                    elif 'recipe' in message_lower:
-                        structured_data = RecipeInfo.model_validate_json(response['message']['content'])
-                    return {'response': json.dumps(structured_data.model_dump(), indent=2)}
-                except Exception as e:
-                    logger.error(f"Structured output validation error: {str(e)}")
-                    return {'response': response['message']['content']}
-            else:
-                response = await ollama_client.chat(
-                    model=model,
-                    messages=session['messages']
-                )
-                return {'response': response['message']['content']}
-
-
 @app.route('/analyze-comic', methods=['POST'])
 async def analyze_comic():
     try:
@@ -307,6 +249,7 @@ async def analyze_comic():
             latest.raise_for_status()
 
             if not comic_num:
+                import random
                 comic_num = random.randint(1, latest.json().get('num'))
 
             comic = await client.get(f'https://xkcd.com/{comic_num}/info.0.json')
@@ -394,10 +337,23 @@ async def create_model():
         if not model_name:
             return jsonify({'error': 'Model name is required'}), 400
 
-        # First pull the base model
         client = AsyncClient()
-        session['pull_progress'] = {}
-        current_digest = ''
+        session['pull_progress'] = {'status': 'Initializing model creation...'}
+
+        # Validate base model exists
+        try:
+            models = await client.list()
+            if not any(model.model == base_model for model in models.models):
+                # Pull the base model if it doesn't exist
+                session['pull_progress']['status'] = f'Pulling base model {base_model}...'
+                async for progress in client.pull(base_model, stream=True):
+                    if 'status' in progress:
+                        session['pull_progress']['status'] = progress['status']
+                    elif 'completed' in progress and 'total' in progress:
+                        session['pull_progress']['progress'] = f"{(progress['completed']/progress['total'])*100:.1f}%"
+        except Exception as e:
+            logger.error(f"Error checking model existence: {str(e)}")
+            return jsonify({'error': f"Error checking model: {str(e)}"}), 500
 
         try:
             async for progress in client.pull(base_model, stream=True):
@@ -543,11 +499,21 @@ async def get_process_status():
 async def list_models():
     try:
         response = await ollama_client.list()
-        return jsonify([{
-            'name': model.model,
-            'size': f"{(model.size / 1024 / 1024):.2f} MB",
-            'details': model.details._asdict() if model.details else None
-        } for model in response.models])
+        models_info = []
+        for model in response.models:
+            model_info = {
+                'name': model.model,
+                'size': f"{(model.size / 1024 / 1024):.2f} MB",
+            }
+            if model.details:
+                model_info.update({
+                    'format': model.details.format,
+                    'family': model.details.family,
+                    'parameter_size': model.details.parameter_size,
+                    'quantization_level': model.details.quantization_level
+                })
+            models_info.append(model_info)
+        return jsonify(models_info)
     except Exception as e:
         return await handle_ollama_error(e)
 
