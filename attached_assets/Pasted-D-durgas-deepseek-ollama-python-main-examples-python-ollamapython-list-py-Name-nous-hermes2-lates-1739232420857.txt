@@ -1,0 +1,161 @@
+D:\durgas\deepseek\ollama-python-main\examples>python ollamapython\list.py
+Name: nous-hermes2:latest
+  Size (MB): 5791.10
+  Format: gguf
+  Family: llama
+  Parameter Size: 11B
+  Quantization Level: Q4_0
+
+
+Name: codegeex4:latest
+  Size (MB): 5202.60
+  Format: gguf
+  Family: chatglm
+  Parameter Size: 9.4B
+  Quantization Level: Q4_0
+
+
+Name: codegemma:latest
+  Size (MB): 4779.68
+  Format: gguf
+  Family: gemma
+  Parameter Size: 9B
+  Quantization Level: Q4_0
+
+
+Name: codegemma:7b
+  Size (MB): 4779.68
+  Format: gguf
+  Family: gemma
+  Parameter Size: 9B
+  Quantization Level: Q4_0
+
+
+Name: stablelm2:latest
+  Size (MB): 937.26
+  Format: gguf
+  Family: stablelm
+  Parameter Size: 2B
+  Quantization Level: Q4_0
+
+
+Name: codegemma:2b
+  Size (MB): 1479.34
+  Format: gguf
+  Family: gemma
+  Parameter Size: 3B
+  Quantization Level: Q4_0
+
+
+Name: marco-o1:7b
+  Size (MB): 4466.14
+  Format: gguf
+  Family: qwen2
+  Parameter Size: 7.6B
+  Quantization Level: Q4_K_M
+
+
+Name: codellama:34b-python-q2_K
+  Size (MB): 13552.36
+  Format: gguf
+  Family: llama
+  Parameter Size: 34B
+  Quantization Level: Q2_K
+
+
+Name: qwen2.5:7b-instruct-q8_0
+  Size (MB): 7723.37
+  Format: gguf
+  Family: qwen2
+  Parameter Size: 7.6B
+  Quantization Level: Q8_0
+
+
+Name: codestral:latest
+  Size (MB): 11986.90
+  Format: gguf
+  Family: llama
+  Parameter Size: 22.2B
+  Quantization Level: Q4_0
+
+
+Name: phi:2.7b-chat-v2-q8_0
+  Size (MB): 2821.00
+  Format: gguf
+  Family: phi2
+  Parameter Size: 3B
+  Quantization Level: Q8_0
+
+
+Name: codellama:latest
+  Size (MB): 3648.67
+  Format: gguf
+  Family: llama
+  Parameter Size: 7B
+  Quantization Level: Q4_0
+
+
+Name: stable-code:3b-code-q4_0
+  Size (MB): 1534.06
+  Format: gguf
+  Family: stablelm
+  Parameter Size: 3B
+  Quantization Level: Q4_0
+
+
+Name: codellama:python
+  Size (MB): 3648.59
+  Format: gguf
+  Family: llama
+  Parameter Size: 7B
+  Quantization Level: Q4_0
+
+
+Name: codellama:instruct
+  Size (MB): 3648.67
+  Format: gguf
+  Family: llama
+  Parameter Size: 7B
+  Quantization Level: Q4_0
+
+
+Name: codellama:code
+  Size (MB): 3648.67
+  Format: gguf
+  Family: llama
+  Parameter Size: 7B
+  Quantization Level: Q4_0
+
+
+Name: codellama:7b-python-q8_0
+  Size (MB): 6829.36
+  Format: gguf
+  Family: llama
+  Parameter Size: 7B
+  Quantization Level: Q8_0
+
+
+Name: mistral:7b-text-v0.2-q8_0
+  Size (MB): 7339.35
+  Format: gguf
+  Family: llama
+  Parameter Size: 7B
+  Quantization Level: Q8_0
+
+
+Name: mistral:latest
+  Size (MB): 3922.75
+  Format: gguf
+  Family: llama
+  Parameter Size: 7.2B
+  Quantization Level: Q4_0
+
+
+Name: deepseek-r1:8b-llama-distill-q8_0
+  Size (MB): 8145.12
+  Format: gguf
+  Family: llama
+  Parameter Size: 8.0B
+  Quantization Level: Q8_0
+
+

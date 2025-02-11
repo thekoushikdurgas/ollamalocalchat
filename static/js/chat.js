@@ -108,8 +108,36 @@ document.addEventListener('DOMContentLoaded', function() {
     // Refresh models list periodically
     setInterval(fetchModels, 30000); // Every 30 seconds
 
-    // Fetch models on page load
-    fetchModels();
+    // Function to display models in sidebar
+    async function displayModels(models) {
+        const modelsList = document.getElementById('modelsList');
+        modelsList.innerHTML = '';
+        
+        models.forEach(model => {
+            const modelDiv = document.createElement('div');
+            modelDiv.className = 'model-item';
+            
+            const modelName = document.createElement('span');
+            modelName.className = 'model-name';
+            modelName.textContent = model.name;
+            
+            const modelDetails = document.createElement('span');
+            modelDetails.className = 'model-details';
+            let details = `Size: ${model.size}`;
+            if (model.family) details += ` | Family: ${model.family}`;
+            modelDetails.textContent = details;
+            
+            modelDiv.appendChild(modelName);
+            modelDiv.appendChild(modelDetails);
+            modelsList.appendChild(modelDiv);
+        });
+    }
+
+    // Fetch and display models on page load
+    fetchModels().then(displayModels);
+
+    // Refresh models list periodically
+    setInterval(() => fetchModels().then(displayModels), 30000);
 
     async function generateCode(prompt, suffix = '') {
         try {
@@ -199,19 +227,32 @@ createModelSubmit.addEventListener('click', async () => {
         const modelName = document.getElementById('modelName').value;
         const baseModel = document.getElementById('baseModel').value;
         const systemPrompt = document.getElementById('systemPrompt').value;
+        const streamCreation = document.getElementById('streamCreation').checked;
+        
+        if (!modelName || !baseModel) {
+            alert('Please provide both model name and base model');
+            return;
+        }
 
-        // Add progress area to modal
-        const progressArea = document.createElement('div');
-        progressArea.id = 'pullProgress';
-        document.querySelector('.modal-content').appendChild(progressArea);
+        // Get or create progress area
+        let progressArea = document.getElementById('pullProgress');
+        if (!progressArea) {
+            progressArea = document.createElement('div');
+            progressArea.id = 'pullProgress';
+            document.querySelector('.modal-content').appendChild(progressArea);
+        }
 
         // Start progress tracking
         const progressTracker = trackPullProgress();
 
-        const progressArea = document.createElement('div');
-        progressArea.id = 'modelProgress';
-        progressArea.className = 'model-progress';
-        document.querySelector('.modal-content').appendChild(progressArea);
+        // Get or create model progress div
+        let progressDiv = document.getElementById('modelProgress');
+        if (!progressDiv) {
+            progressDiv = document.createElement('div');
+            progressDiv.id = 'modelProgress';
+            progressDiv.className = 'model-progress';
+            document.querySelector('.modal-content').appendChild(progressDiv);
+        }
 
         try {
             progressArea.textContent = 'Starting model creation...';
