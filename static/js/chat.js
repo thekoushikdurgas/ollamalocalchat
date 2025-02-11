@@ -114,23 +114,40 @@ document.addEventListener('DOMContentLoaded', function() {
         modelsList.innerHTML = '';
         
         models.forEach(model => {
-            const modelDiv = document.createElement('div');
-            modelDiv.className = 'model-item';
+            const modelLink = document.createElement('a');
+            modelLink.href = '#';
+            modelLink.className = 'nav-item';
             
-            const modelName = document.createElement('span');
-            modelName.className = 'model-name';
-            modelName.textContent = model.name;
+            // Add icon
+            const icon = document.createElement('i');
+            icon.setAttribute('data-feather', 'box');
+            modelLink.appendChild(icon);
             
-            const modelDetails = document.createElement('span');
-            modelDetails.className = 'model-details';
-            let details = `Size: ${model.size}`;
-            if (model.family) details += ` | Family: ${model.family}`;
-            modelDetails.textContent = details;
+            // Create content div
+            const content = document.createElement('div');
+            content.className = 'model-content';
             
-            modelDiv.appendChild(modelName);
-            modelDiv.appendChild(modelDetails);
-            modelsList.appendChild(modelDiv);
+            // Add model name
+            const name = document.createElement('div');
+            name.className = 'model-name';
+            name.textContent = model.name;
+            content.appendChild(name);
+            
+            // Add model details
+            const details = document.createElement('div');
+            details.className = 'model-details';
+            details.textContent = `${model.size} | ${model.family || 'Unknown'} family`;
+            if (model.parameter_size) {
+                details.textContent += ` | ${model.parameter_size}`;
+            }
+            content.appendChild(details);
+            
+            modelLink.appendChild(content);
+            modelsList.appendChild(modelLink);
         });
+        
+        // Refresh Feather icons
+        feather.replace();
     }
 
     // Fetch and display models on page load

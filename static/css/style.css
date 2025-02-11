@@ -535,14 +535,45 @@ body {
     padding-left: 10px;
 }
 
-.model-item {
+.model-content {
     display: flex;
     flex-direction: column;
-    padding: 8px 12px;
-    margin-bottom: 5px;
+    margin-left: 8px;
+}
+
+.model-name {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.model-details {
+    font-size: 12px;
+    color: #666;
+    margin-top: 2px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 12px;
+    text-decoration: none;
+    color: inherit;
     border-radius: 6px;
-    background: rgba(0,0,0,0.05);
-    font-size: 13px;
+    margin-bottom: 4px;
+    transition: background-color 0.2s;
+}
+
+.nav-item:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+
+.nav-item.active {
+    background-color: rgba(0,0,0,0.1);
+}
+
+.nav-item i {
+    margin-top: 2px;
+    color: #666;
 }
 
 .model-item:hover {
